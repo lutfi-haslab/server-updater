@@ -55,6 +55,31 @@ export function jsonResponse(
 }
 
 export function getBaseUrl(req: Request, fallbackPort: number = 3001): string {
+  const envUrl = (
+    process.env.PUBLIC_URL ||
+    process.env.UPDATE_SERVER_URL ||
+    ""
+  ).trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, "");
+  }
+
+  try {
+    const parsed = new URL(req.url);
+    if (parsed.protocol === "https:" || parsed.hostname.includes("workers.dev")) {
+      return parsed.origin;
+    }
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    if (forwardedHost) {
+      const proto = forwardedProto || (parsed.protocol === "https:" ? "https" : "http");
+      return `${proto}://${forwardedHost}`;
+    }
+    if (parsed.hostname && parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+      return parsed.origin;
+    }
+  } catch {}
+
   const host =
     req.headers.get("x-forwarded-host") ||
     req.headers.get("host") ||

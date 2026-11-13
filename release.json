@@ -27,7 +27,7 @@
   ],
   "downloads": {
     "macos": {
-      "url": "http://localhost:3001/storage/METDesk-2.3.0.dmg",
+      "url": "https://metdesk-update-server-dev.hasdev.workers.dev/storage/METDesk-2.3.0.dmg",
       "filename": "METDesk-2.3.0.dmg",
       "size": 30720,
       "sizeBytes": 31457280,
@@ -35,7 +35,7 @@
       "sha256": "b67741907bb63a74a78b61b6f2f8ebf56c9656e2320b32b6aaf7175369768c19"
     },
     "windows": {
-      "url": "http://localhost:3001/storage/METDesk-2.3.0-setup.exe",
+      "url": "https://metdesk-update-server-dev.hasdev.workers.dev/storage/METDesk-2.3.0-setup.exe",
       "filename": "METDesk-2.3.0-setup.exe",
       "size": 27648,
       "sizeBytes": 28311552,
