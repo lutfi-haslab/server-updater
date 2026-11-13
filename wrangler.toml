@@ -1,0 +1,22 @@
+name = "server-updater"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+account_id = "" # Masukkan Cloudflare Account ID Anda atau gunakan CLOUDFLARE_ACCOUNT_ID env
+
+[[r2_buckets]]
+binding = "BINARIES_BUCKET"
+bucket_name = "app-updates-dev"
+preview_bucket_name = "app-updates-dev-preview"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[vars]
+ADMIN_USERNAME = "admin"
+# In local/preview dev, these can have sensible defaults.
+# For remote deployments, configure via: wrangler secret put ADMIN_PASSWORD
+ADMIN_PASSWORD = "admin"
+UPLOAD_AUTH_KEY = ""

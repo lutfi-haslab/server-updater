@@ -1,0 +1,19 @@
+{
+  "name": "server-updater",
+  "version": "1.0.0",
+  "description": "Dedicated Object Storage & Auto-Update Server built with Bun & TypeScript (Docker Prod + Cloudflare Workers Dev)",
+  "main": "src/server.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch src/server.ts",
+    "test": "bun test tests/",
+    "worker:dev": "bunx wrangler dev",
+    "worker:deploy": "bunx wrangler deploy",
+    "worker:tail": "bunx wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261102.1",
+    "@types/bun": "latest"
+  }
+}

@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Cloudflare Wrangler build & dev state
+.wrangler/
+
+# Environment files (CRITICAL: NEVER COMMIT SECRETS TO PUBLIC REPO)
+.env
+.env.*
+!.env.example
+
+# Temporary files
+.tmp_*
+*.tmp
+
+# Storage binaries (Keep directory structure via .gitkeep)
+binaries/*
+!binaries/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db

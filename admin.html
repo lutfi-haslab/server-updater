@@ -1,0 +1,2671 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>METDesk - Auto-Update & Binary Storage</title>
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          boxShadow: {
+            '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            'xs': '0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Custom clean scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f4f4f5; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+    .ti { vertical-align: -0.125em; }
+  </style>
+</head>
+<body class="bg-zinc-50/70 text-zinc-900 min-h-screen font-sans antialiased selection:bg-zinc-900 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- 1. LOGIN VIEW (Shown when unauthenticated) -->
+  <!-- ========================================================================= -->
+  <div id="loginView" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+      <div class="bg-white border border-zinc-200/90 rounded-xl p-6 sm:p-8 shadow-xs">
+        <!-- Logo & Title -->
+        <div class="text-center mb-6">
+          <div class="w-10 h-10 mx-auto mb-3 rounded-lg bg-zinc-900 text-white flex items-center justify-center text-lg shadow-xs">
+            <i class="ti ti-server-2"></i>
+          </div>
+          <h1 class="text-base font-semibold text-zinc-900 tracking-tight">METDesk Update Server</h1>
+          <p class="text-xs text-zinc-500 mt-1">Autentikasi administrator update & storage</p>
+        </div>
+
+        <!-- Alert Box -->
+        <div id="loginAlert" class="hidden mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+          <i class="ti ti-alert-triangle text-base flex-shrink-0"></i>
+          <span id="loginAlertText">Username atau password salah!</span>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-zinc-700 mb-1.5">Username</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400">
+                <i class="ti ti-user text-sm"></i>
+              </span>
+              <input
+                type="text"
+                id="loginUsername"
+                required
+                placeholder="admin"
+                autocomplete="username"
+                class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md pl-9 pr-3 py-2 text-xs text-zinc-900 placeholder:text-zinc-400 outline-none transition-colors shadow-2xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-zinc-700 mb-1.5">Password</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400">
+                <i class="ti ti-lock text-sm"></i>
+              </span>
+              <input
+                type="password"
+                id="loginPassword"
+                required
+                placeholder="Password admin"
+                autocomplete="current-password"
+                class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md pl-9 pr-10 py-2 text-xs text-zinc-900 placeholder:text-zinc-400 outline-none transition-colors shadow-2xs"
+              />
+              <button
+                type="button"
+                id="togglePasswordBtn"
+                onclick="togglePasswordVisibility()"
+                class="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600 transition-colors"
+              >
+                <i id="eyeIcon" class="ti ti-eye text-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            id="loginSubmitBtn"
+            class="w-full py-2 px-4 rounded-md bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-medium text-xs shadow-xs transition-colors flex items-center justify-center gap-2"
+          >
+            <span id="loginBtnText">Masuk ke Dashboard</span>
+            <svg id="loginSpinner" class="hidden animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+          </button>
+        </form>
+
+        <div class="mt-5 pt-4 border-t border-zinc-100 text-center">
+          <span class="text-[11px] text-zinc-400">
+            Kredensial dikonfigurasi melalui <code class="px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 font-mono text-[10px]">.env / secrets</code>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 2. MAIN DASHBOARD VIEW (Shown when authenticated) -->
+  <!-- ========================================================================= -->
+  <div id="dashboardView" class="hidden max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Top Navigation Header -->
+    <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-5 border-b border-zinc-200">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-zinc-900 text-white flex items-center justify-center text-lg flex-shrink-0 shadow-xs">
+          <i class="ti ti-server-2"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base font-semibold text-zinc-900 tracking-tight">METDesk Update Server</h1>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live Server
+            </span>
+            <span id="storageStatsBadge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-600 font-mono">
+              Memuat...
+            </span>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-zinc-500 mt-0.5 flex-wrap">
+            <span>Dedicated Object Storage (.dmg, .exe, .AppImage, .zip)</span>
+            <span class="text-zinc-300">•</span>
+            <span class="text-[11px] text-zinc-500 font-mono">Target: <code id="storageDirPath" class="text-zinc-700 font-semibold">r2://bucket</code></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Links, User Profile, & Logout -->
+      <div class="flex items-center gap-2 flex-wrap self-end md:self-center">
+        <a href="/updates" target="_blank" class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-xs font-mono text-zinc-700 hover:text-zinc-900 border border-zinc-200 flex items-center gap-1.5 shadow-2xs transition-colors">
+          <i class="ti ti-code text-xs text-blue-600"></i>
+          <span>GET /updates</span>
+          <i class="ti ti-external-link text-[10px] text-zinc-400"></i>
+        </a>
+
+        <a href="/health" target="_blank" class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-xs font-mono text-zinc-700 hover:text-zinc-900 border border-zinc-200 flex items-center gap-1.5 shadow-2xs transition-colors">
+          <i class="ti ti-activity text-xs text-emerald-600"></i>
+          <span>GET /health</span>
+        </a>
+
+        <!-- User Chip & Logout Button -->
+        <div class="flex items-center gap-1.5 pl-2 border-l border-zinc-200">
+          <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-100 border border-zinc-200 text-xs text-zinc-700 font-medium">
+            <i class="ti ti-user text-zinc-500 text-xs"></i>
+            <span id="currentUsername">admin</span>
+          </div>
+          <button onclick="handleLogout()" title="Keluar dari portal" class="p-1.5 rounded-md bg-white hover:bg-red-50 text-zinc-500 hover:text-red-600 border border-zinc-200 hover:border-red-200 shadow-2xs transition-colors">
+            <i class="ti ti-logout text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs Bar (Shadcn Segmented Control) -->
+    <div class="inline-flex items-center gap-1 p-1 rounded-lg bg-zinc-100 border border-zinc-200/80 text-xs font-medium w-full sm:w-auto overflow-x-auto">
+      <button onclick="switchTab('tabFileManager')" id="tabBtn_fileManager" class="tab-btn px-3.5 py-1.5 rounded-md text-zinc-900 bg-white shadow-xs font-semibold flex items-center gap-2 transition-all">
+        <i class="ti ti-folders text-sm text-zinc-700"></i>
+        <span>File Manager & Storage</span>
+      </button>
+
+      <button onclick="switchTab('tabUploadRelease')" id="tabBtn_uploadRelease" class="tab-btn px-3.5 py-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50 flex items-center gap-2 transition-all">
+        <i class="ti ti-upload text-sm"></i>
+        <span>Terbitkan Rilis Baru</span>
+      </button>
+
+      <button onclick="switchTab('tabActiveConfig')" id="tabBtn_activeConfig" class="tab-btn px-3.5 py-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50 flex items-center gap-2 transition-all">
+        <i class="ti ti-circle-check text-sm"></i>
+        <span>Latest Release (Aktif)</span>
+      </button>
+
+      <button onclick="switchTab('tabChangelog')" id="tabBtn_changelog" class="tab-btn px-3.5 py-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50 flex items-center gap-2 transition-all">
+        <i class="ti ti-history text-sm"></i>
+        <span>Changelog & Riwayat</span>
+      </button>
+
+      <button onclick="switchTab('tabCiCdGuide')" id="tabBtn_ciCdGuide" class="tab-btn px-3.5 py-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50 flex items-center gap-2 transition-all">
+        <i class="ti ti-terminal-2 text-sm"></i>
+        <span>CI/CD & API</span>
+      </button>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notifyBanner" class="hidden p-3.5 rounded-lg border border-zinc-200 bg-white shadow-xs text-xs flex items-center justify-between transition-all">
+      <div class="flex items-center gap-2.5">
+        <span id="notifyIcon" class="flex items-center justify-center text-sm"></span>
+        <span id="notifyText" class="font-medium text-zinc-800"></span>
+      </div>
+      <button onclick="hideNotify()" class="text-zinc-400 hover:text-zinc-600 text-base leading-none p-1">&times;</button>
+    </div>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: FILE MANAGER & STORAGE -->
+    <!-- ===================================================================== -->
+    <section id="tabFileManager" class="tab-content space-y-5">
+
+      <!-- Summary Statistics Bar (Shadcn Cards) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 flex items-center gap-3.5 shadow-xs">
+          <div class="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="ti ti-database"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[11px] text-zinc-500 font-medium">Total Objects</div>
+            <div id="statTotalObjects" class="text-lg font-bold text-zinc-900 font-mono truncate">0 files</div>
+            <div id="statTotalSize" class="text-[11px] text-zinc-500 truncate">0 MB</div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 flex items-center gap-3.5 shadow-xs">
+          <div class="w-10 h-10 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-800 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="ti ti-brand-apple"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[11px] text-zinc-500 font-medium">macOS Binaries</div>
+            <div id="statMacosCount" class="text-lg font-bold text-zinc-900 font-mono truncate">0 files</div>
+            <div class="text-[11px] text-zinc-500">.dmg, .pkg, .app</div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 flex items-center gap-3.5 shadow-xs">
+          <div class="w-10 h-10 rounded-lg bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="ti ti-brand-windows"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[11px] text-zinc-500 font-medium">Windows Binaries</div>
+            <div id="statWindowsCount" class="text-lg font-bold text-zinc-900 font-mono truncate">0 files</div>
+            <div class="text-[11px] text-zinc-500">.exe, .msi</div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 flex items-center gap-3.5 shadow-xs">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="ti ti-brand-redhat"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[11px] text-zinc-500 font-medium">Linux & Archives</div>
+            <div id="statArchiveCount" class="text-lg font-bold text-zinc-900 font-mono truncate">0 files</div>
+            <div class="text-[11px] text-zinc-500">.AppImage, .deb, .zip</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Upload Drop Zone -->
+      <div class="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="ti ti-cloud-upload text-base text-zinc-700"></i>
+            <h2 class="text-xs font-semibold text-zinc-900">Upload Installer Cepat</h2>
+          </div>
+          <div class="text-[11px] text-zinc-500">Streaming langsung ke Object Storage</div>
+        </div>
+
+        <div
+          id="fmDropZone"
+          class="border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-zinc-50/50 hover:bg-zinc-100/50 group"
+          onclick="document.getElementById('fmFileInput').click()"
+        >
+          <input
+            type="file"
+            id="fmFileInput"
+            class="hidden"
+            multiple
+            accept=".dmg,.exe,.pkg,.msi,.app,.AppImage,.appimage,.deb,.rpm,.zip,.tar.gz,.tgz,.tar.xz"
+            onchange="handleFmFilesSelected(this.files)"
+          />
+          <div class="w-10 h-10 mx-auto mb-2.5 rounded-lg bg-white text-zinc-500 group-hover:text-zinc-900 flex items-center justify-center transition-colors border border-zinc-200 shadow-2xs">
+            <i class="ti ti-cloud-upload text-xl"></i>
+          </div>
+          <div class="text-xs font-semibold text-zinc-900">
+            Tarik & letakkan file installer di sini, atau <span class="text-blue-600 underline">klik untuk memilih file</span>
+          </div>
+          <div class="text-[11px] text-zinc-500 mt-1">
+            Hanya file binary desktop: .dmg, .exe, .pkg, .AppImage, .deb, .rpm, .zip, dll.
+          </div>
+        </div>
+
+        <!-- Upload Progress Queue Area -->
+        <div id="fmUploadQueue" class="hidden space-y-2 pt-2 border-t border-zinc-100">
+          <div class="flex items-center justify-between text-xs font-medium text-zinc-700">
+            <span>Antrean Upload (<span id="fmUploadCount">0</span> file)</span>
+            <span id="fmUploadStatus" class="text-[11px] text-zinc-500">Memproses...</span>
+          </div>
+          <div id="fmQueueItems" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- File Manager Explorer -->
+      <div class="bg-white border border-zinc-200/80 rounded-xl shadow-xs overflow-hidden">
+        <!-- Explorer Header Toolbar -->
+        <div class="p-4 border-b border-zinc-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div class="flex items-center gap-2 flex-1">
+            <!-- Search Box -->
+            <div class="relative flex-1 max-w-xs">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400">
+                <i class="ti ti-search text-xs"></i>
+              </span>
+              <input
+                type="text"
+                id="fmSearchInput"
+                placeholder="Cari file installer..."
+                oninput="filterBinariesList()"
+                class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 outline-none transition-colors shadow-2xs"
+              />
+            </div>
+
+            <!-- Platform Filter -->
+            <select
+              id="fmPlatformFilter"
+              onchange="filterBinariesList()"
+              class="bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-2.5 py-1.5 text-xs text-zinc-700 outline-none transition-colors shadow-2xs"
+            >
+              <option value="all">Semua Platform</option>
+              <option value="macos">macOS (.dmg, .pkg)</option>
+              <option value="windows">Windows (.exe, .msi)</option>
+              <option value="linux">Linux (.AppImage, .deb, .rpm)</option>
+              <option value="archive">Archives (.zip, .tar.gz)</option>
+            </select>
+          </div>
+
+          <!-- Actions & View Switcher -->
+          <div class="flex items-center gap-2 self-end md:self-auto flex-wrap">
+            <!-- Bulk Delete Action -->
+            <button
+              id="fmBulkDeleteBtn"
+              onclick="openBulkDeleteModal()"
+              class="hidden px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-medium transition-colors flex items-center gap-1.5 shadow-2xs"
+            >
+              <i class="ti ti-trash text-xs"></i>
+              <span>Hapus (<span id="fmSelectedCount">0</span>)</span>
+            </button>
+
+            <!-- Sample Binary Generator Button -->
+            <button
+              onclick="generateSampleBinary()"
+              title="Buat file dummy executable untuk testing"
+              class="px-2.5 py-1.5 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 hover:text-zinc-900 text-xs font-medium transition-colors flex items-center gap-1.5 shadow-2xs"
+            >
+              <i class="ti ti-sparkles text-xs text-amber-500"></i>
+              <span>+ Sample Executable</span>
+            </button>
+
+            <!-- Refresh Button -->
+            <button
+              onclick="loadBinaries()"
+              title="Segarkan daftar file"
+              class="p-1.5 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 hover:text-zinc-900 transition-colors shadow-2xs"
+            >
+              <i class="ti ti-refresh text-xs"></i>
+            </button>
+
+            <!-- View Toggle (Grid / List) -->
+            <div class="flex items-center p-0.5 rounded-md bg-zinc-100 border border-zinc-200">
+              <button
+                id="viewBtnGrid"
+                onclick="setFmView('grid')"
+                title="Tampilan Grid Card"
+                class="p-1 rounded text-zinc-900 bg-white shadow-2xs transition-all"
+              >
+                <i class="ti ti-layout-grid text-xs"></i>
+              </button>
+              <button
+                id="viewBtnList"
+                onclick="setFmView('list')"
+                title="Tampilan Tabel List"
+                class="p-1 rounded text-zinc-500 hover:text-zinc-900 transition-all"
+              >
+                <i class="ti ti-list text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Binaries Content Container -->
+        <div class="p-4">
+          <!-- View 1: Grid Cards -->
+          <div id="fmGridContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+            <!-- Cards populated dynamically via JS -->
+          </div>
+
+          <!-- View 2: Table List -->
+          <div id="fmTableContainer" class="hidden overflow-x-auto border border-zinc-200 rounded-lg">
+            <table class="w-full text-left text-xs divide-y divide-zinc-200">
+              <thead class="bg-zinc-50/80 text-zinc-500 font-medium">
+                <tr>
+                  <th class="p-3 w-8">
+                    <input type="checkbox" id="fmSelectAllCheckbox" onchange="toggleFmSelectAll(this.checked)" class="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer">
+                  </th>
+                  <th class="p-3">Nama File Binary</th>
+                  <th class="p-3">Platform</th>
+                  <th class="p-3">Ukuran</th>
+                  <th class="p-3">SHA-256 Checksum</th>
+                  <th class="p-3">Waktu Diubah</th>
+                  <th class="p-3">Status Rilis</th>
+                  <th class="p-3 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="fmTableBody" class="divide-y divide-zinc-100 bg-white font-mono">
+                <!-- Rows populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div id="fmEmptyState" class="hidden py-12 text-center space-y-3">
+            <div class="w-12 h-12 mx-auto rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center text-2xl border border-zinc-200">
+              <i class="ti ti-package"></i>
+            </div>
+            <div class="text-xs font-semibold text-zinc-800">Tidak ada file binary ditemukan</div>
+            <p class="text-[11px] text-zinc-500 max-w-sm mx-auto">
+              Silakan unggah installer aplikasi menggunakan drop zone di atas atau gunakan tombol Sample Executable untuk testing.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: TERBITKAN RILIS BARU -->
+    <!-- ===================================================================== -->
+    <section id="tabUploadRelease" class="tab-content hidden space-y-6">
+      <div class="bg-white border border-zinc-200/80 rounded-xl p-6 shadow-xs space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-100">
+          <div>
+            <h2 class="text-sm font-semibold text-zinc-900 tracking-tight">Form Terbitkan Pembaruan Rilis</h2>
+            <p class="text-xs text-zinc-500 mt-0.5">
+              Pilih binary dari storage (hasil CI/CD) atau unggah file baru, lalu simpan sebagai draf atau langsung terbitkan ke client.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 self-start sm:self-auto">
+            <span id="draftStatusBadge" class="hidden text-[11px] px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-medium flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span>Draf Tersimpan</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Draft Alert / Quick Loader (if available) -->
+        <div id="draftAlertBox" class="hidden p-3.5 rounded-lg bg-amber-50/70 border border-amber-200 text-xs text-amber-900 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <i class="ti ti-file-pencil text-amber-600 text-base flex-shrink-0"></i>
+            <div>
+              <span class="font-semibold" id="draftAlertVersion">Draf rilis v...</span> tersedia di server.
+              <span class="text-amber-700 block sm:inline">Ingin memuat isi draf ini ke formulir?</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button type="button" onclick="loadDraftIntoForm()" class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-medium text-[11px] transition-colors shadow-2xs">
+              Muat Draf
+            </button>
+            <button type="button" onclick="discardSavedDraft()" class="px-2 py-1 rounded-md bg-white hover:bg-amber-100/50 border border-amber-300 text-amber-800 text-[11px] transition-colors">
+              Hapus Draf
+            </button>
+          </div>
+        </div>
+
+        <form id="publishReleaseForm" onsubmit="handlePublishSubmit(event)" class="space-y-5">
+          <!-- Step 1: Installer Source Selection -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-semibold text-zinc-800">1. Pilih Installer Binary</label>
+              <!-- Source Mode Switcher -->
+              <div class="inline-flex items-center p-0.5 rounded-lg bg-zinc-100 border border-zinc-200 text-[11px]">
+                <button
+                  type="button"
+                  id="srcBtnExisting"
+                  onclick="setInstallerSourceMode('existing')"
+                  class="px-2.5 py-1 rounded-md bg-white text-zinc-900 font-semibold shadow-2xs flex items-center gap-1.5 transition-all"
+                >
+                  <i class="ti ti-database text-xs text-blue-600"></i>
+                  <span>Dari Storage / CI/CD</span>
+                </button>
+                <button
+                  type="button"
+                  id="srcBtnUpload"
+                  onclick="setInstallerSourceMode('upload')"
+                  class="px-2.5 py-1 rounded-md text-zinc-500 hover:text-zinc-900 flex items-center gap-1.5 transition-all"
+                >
+                  <i class="ti ti-upload text-xs"></i>
+                  <span>Upload File Baru</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Mode A: Pick from Existing Storage List (RECOMMENDED) -->
+            <div id="srcContainerExisting" class="space-y-3">
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-zinc-700">Daftar Installer Tersedia di Storage</label>
+                <select
+                  id="publishExistingSelect"
+                  onchange="handleExistingBinarySelected(this.value)"
+                  class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md px-3 py-2 text-xs font-mono text-zinc-900 outline-none transition-colors shadow-2xs"
+                >
+                  <option value="">-- Pilih File Installer dari Storage --</option>
+                </select>
+                <p class="text-[11px] text-zinc-500">
+                  Pilih file installer yang sebelumnya telah di-upload melalui pipeline GitHub Actions CI/CD atau File Manager.
+                </p>
+              </div>
+
+              <!-- Selected Existing File Info Card -->
+              <div id="existingFileCard" class="hidden p-3.5 rounded-lg bg-zinc-50 border border-zinc-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span id="existingFileIcon" class="text-base text-zinc-700"><i class="ti ti-file"></i></span>
+                    <span id="existingFileName" class="font-mono text-xs font-semibold text-zinc-900"></span>
+                    <span id="existingFilePlatformBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium"></span>
+                  </div>
+                  <span id="existingFileSize" class="font-mono text-xs text-zinc-600"></span>
+                </div>
+                <div class="text-[11px] font-mono text-zinc-500 flex items-center gap-2 pt-1 border-t border-zinc-200/60 truncate">
+                  <span>SHA-256:</span>
+                  <span id="existingFileSha" class="text-zinc-700 select-all truncate"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mode B: Upload New File from Computer -->
+            <div id="srcContainerUpload" class="hidden space-y-2">
+              <div
+                id="uploadDropZone"
+                class="border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-zinc-50/50 hover:bg-zinc-100/50 group"
+                onclick="document.getElementById('fileInput').click()"
+              >
+                <input type="file" id="fileInput" class="hidden" accept=".dmg,.exe,.pkg,.msi,.app,.AppImage,.appimage,.deb,.rpm,.zip,.tar.gz,.tgz,.tar.xz" onchange="handleFileSelected(this.files[0])">
+                <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-white border border-zinc-200 text-zinc-500 group-hover:text-zinc-900 flex items-center justify-center text-xl transition-colors shadow-2xs">
+                  <i class="ti ti-file-upload"></i>
+                </div>
+                <div id="dropZoneText" class="text-xs font-medium text-zinc-900">
+                  Pilih file <code class="text-blue-600 font-mono">.dmg</code> (macOS), <code class="text-sky-600 font-mono">.exe</code> (Windows), atau <code class="text-amber-600 font-mono">.AppImage</code> (Linux)
+                </div>
+                <div id="selectedFileInfo" class="hidden mt-2 text-xs font-mono text-zinc-600 bg-white border border-zinc-200 py-1.5 px-3 rounded-md inline-block shadow-2xs"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Release Metadata Auto-Fill -->
+          <div class="space-y-4 pt-3 border-t border-zinc-100">
+            <div class="text-xs font-semibold text-zinc-800">2. Metadata & Parameter Rilis</div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Versi Rilis Target</label>
+                <input
+                  type="text"
+                  id="targetVersion"
+                  required
+                  placeholder="Contoh: 2.2.8"
+                  class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md px-3 py-2 text-xs font-mono text-zinc-900 outline-none transition-colors shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Target Platform</label>
+                <select
+                  id="targetPlatform"
+                  class="w-full bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-3 py-2 text-xs text-zinc-900 outline-none transition-colors shadow-2xs"
+                >
+                  <option value="auto">Otomatis (Deteksi dari ekstensi file)</option>
+                  <option value="windows">Windows (.exe, .msi)</option>
+                  <option value="macos">macOS (.dmg, .pkg)</option>
+                  <option value="linux">Linux (.AppImage, .deb, .rpm)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Tipe Pembaruan</label>
+                <select
+                  id="targetType"
+                  class="w-full bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-3 py-2 text-xs text-zinc-900 outline-none transition-colors shadow-2xs"
+                >
+                  <option value="minor">Minor Update (Fitur Baru & Perbaikan)</option>
+                  <option value="patch">Patch Update (Bugfix Cepat)</option>
+                  <option value="major">Major Upgrade (Perombakan Besar)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Versi Minimum Client (minVersion)</label>
+                <input
+                  type="text"
+                  id="targetMinVersion"
+                  placeholder="Contoh: 2.0.0"
+                  class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md px-3 py-2 text-xs font-mono text-zinc-900 outline-none transition-colors shadow-2xs"
+                />
+              </div>
+
+              <div class="flex items-center pt-5">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" id="targetForceUpdate" class="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900">
+                  <span class="text-xs font-medium text-zinc-800">Wajibkan Update (Force Update ke Client)</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-zinc-700 mb-1">Ringkasan Pembaruan (Summary)</label>
+              <input
+                type="text"
+                id="targetSummary"
+                placeholder="Contoh: Pembaruan performa, perbaikan sinkronisasi dan stabilitas sistem"
+                class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md px-3 py-2 text-xs text-zinc-900 outline-none transition-colors shadow-2xs"
+              />
+            </div>
+          </div>
+
+          <!-- Step 3: Changelog Items -->
+          <div class="space-y-3 pt-3 border-t border-zinc-100">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-zinc-800">3. Butir Catatan Perubahan (Changelog)</label>
+              <button
+                type="button"
+                onclick="addPublishChangelogRow()"
+                class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              >
+                <i class="ti ti-plus"></i> Tambah Baris
+              </button>
+            </div>
+
+            <div id="publishChangelogContainer" class="space-y-2">
+              <!-- Rows added dynamically via JS -->
+            </div>
+          </div>
+
+          <!-- Upload Progress Bar (when uploading physical bytes) -->
+          <div id="uploadProgressContainer" class="hidden space-y-1.5 pt-2">
+            <div class="flex items-center justify-between text-xs text-zinc-600 font-mono">
+              <span id="uploadProgressLabel">Memproses installer rilis...</span>
+              <span id="uploadProgressPercent">0%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-zinc-100 overflow-hidden border border-zinc-200">
+              <div id="uploadProgressBar" class="h-full bg-zinc-900 transition-all duration-150 w-0"></div>
+            </div>
+          </div>
+
+          <!-- Action Buttons: Reset, Draft, Publish -->
+          <div class="pt-4 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onclick="resetPublishForm()"
+              class="px-4 py-2 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-medium transition-colors shadow-2xs"
+            >
+              Reset Form
+            </button>
+
+            <div class="flex items-center gap-2.5">
+              <!-- Draft Button -->
+              <button
+                type="button"
+                id="saveDraftBtn"
+                onclick="handleSaveDraft()"
+                class="px-4 py-2 rounded-md bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-800 text-xs font-medium shadow-2xs transition-colors flex items-center gap-1.5"
+              >
+                <i class="ti ti-file-pencil text-sm text-amber-600"></i>
+                <span>Simpan Draf</span>
+              </button>
+
+              <!-- Publish Button -->
+              <button
+                type="submit"
+                id="publishSubmitBtn"
+                class="px-5 py-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium shadow-xs transition-colors flex items-center gap-2"
+              >
+                <i class="ti ti-rocket text-sm"></i>
+                <span>Terbitkan Rilis (Publish)</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: LATEST RELEASE (AKTIF) -->
+    <!-- ===================================================================== -->
+    <section id="tabActiveConfig" class="tab-content hidden space-y-6">
+      <!-- Status Live Release Banner -->
+      <div class="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-lg flex-shrink-0">
+              <i class="ti ti-broadcast"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-zinc-900">State Rilis Aktif (Latest Release)</h2>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Live ke Client
+                </span>
+              </div>
+              <p class="text-xs text-zinc-500 mt-0.5">
+                Konfigurasi rilis yang saat ini disajikan secara publik melalui endpoint <code class="text-zinc-800 font-mono font-medium">/updates</code>.
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              onclick="loadReleaseData()"
+              class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium flex items-center gap-1.5 shadow-2xs transition-colors"
+            >
+              <i class="ti ti-refresh text-xs"></i>
+              <span>Refresh Data</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Active Metadata Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="p-3.5 rounded-lg bg-zinc-50 border border-zinc-200">
+            <span class="text-[11px] font-medium text-zinc-500 block">Versi Rilis</span>
+            <span id="activeMetaVersion" class="text-lg font-bold text-zinc-900 font-mono">-</span>
+          </div>
+
+          <div class="p-3.5 rounded-lg bg-zinc-50 border border-zinc-200">
+            <span class="text-[11px] font-medium text-zinc-500 block">Tanggal Rilis</span>
+            <span id="activeMetaDate" class="text-xs font-semibold text-zinc-800 font-mono mt-1 block">-</span>
+          </div>
+
+          <div class="p-3.5 rounded-lg bg-zinc-50 border border-zinc-200">
+            <span class="text-[11px] font-medium text-zinc-500 block">Tipe Pembaruan</span>
+            <span id="activeMetaType" class="text-xs font-semibold text-zinc-800 uppercase mt-1 block">-</span>
+          </div>
+
+          <div class="p-3.5 rounded-lg bg-zinc-50 border border-zinc-200">
+            <span class="text-[11px] font-medium text-zinc-500 block">Status Wajib (Force)</span>
+            <span id="activeMetaForce" class="text-xs font-semibold text-zinc-800 mt-1 block">-</span>
+          </div>
+        </div>
+
+        <!-- Active Binaries Grid -->
+        <div class="space-y-2 pt-2">
+          <span class="text-xs font-semibold text-zinc-800 block">Binary Installer Aktif per Platform</span>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- Windows Card -->
+            <div id="activeWinCard" class="p-3.5 rounded-lg bg-white border border-zinc-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-sky-700 flex items-center gap-1.5">
+                  <i class="ti ti-brand-windows text-sm"></i> Windows
+                </span>
+                <span id="activeWinSize" class="text-[11px] font-mono text-zinc-500">-</span>
+              </div>
+              <div id="activeWinName" class="font-mono text-xs text-zinc-800 font-medium truncate">-</div>
+              <div class="flex items-center justify-between pt-1 border-t border-zinc-100 text-[11px]">
+                <a id="activeWinDownloadBtn" href="#" class="text-blue-600 hover:underline flex items-center gap-1"><i class="ti ti-download"></i> Unduh</a>
+                <span id="activeWinSha" class="font-mono text-zinc-400 text-[10px] truncate max-w-[120px]">-</span>
+              </div>
+            </div>
+
+            <!-- macOS Card -->
+            <div id="activeMacCard" class="p-3.5 rounded-lg bg-white border border-zinc-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-zinc-800 flex items-center gap-1.5">
+                  <i class="ti ti-brand-apple text-sm"></i> macOS
+                </span>
+                <span id="activeMacSize" class="text-[11px] font-mono text-zinc-500">-</span>
+              </div>
+              <div id="activeMacName" class="font-mono text-xs text-zinc-800 font-medium truncate">-</div>
+              <div class="flex items-center justify-between pt-1 border-t border-zinc-100 text-[11px]">
+                <a id="activeMacDownloadBtn" href="#" class="text-blue-600 hover:underline flex items-center gap-1"><i class="ti ti-download"></i> Unduh</a>
+                <span id="activeMacSha" class="font-mono text-zinc-400 text-[10px] truncate max-w-[120px]">-</span>
+              </div>
+            </div>
+
+            <!-- Linux Card -->
+            <div id="activeLinuxCard" class="p-3.5 rounded-lg bg-white border border-zinc-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+                  <i class="ti ti-brand-redhat text-sm"></i> Linux
+                </span>
+                <span id="activeLinuxSize" class="text-[11px] font-mono text-zinc-500">-</span>
+              </div>
+              <div id="activeLinuxName" class="font-mono text-xs text-zinc-800 font-medium truncate">-</div>
+              <div class="flex items-center justify-between pt-1 border-t border-zinc-100 text-[11px]">
+                <a id="activeLinuxDownloadBtn" href="#" class="text-blue-600 hover:underline flex items-center gap-1"><i class="ti ti-download"></i> Unduh</a>
+                <span id="activeLinuxSha" class="font-mono text-zinc-400 text-[10px] truncate max-w-[120px]">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Changelog Preview -->
+        <div class="space-y-2 pt-2 border-t border-zinc-100">
+          <span class="text-xs font-semibold text-zinc-800 block">Catatan Perubahan Rilis Ini</span>
+          <div id="activeChangelogList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <!-- Live JSON Inspector & Emergency Editor -->
+      <div class="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs font-semibold text-zinc-900">Live JSON Inspector</h2>
+            <p class="text-[11px] text-zinc-500">Isi JSON manifest aktual pada <code class="font-mono text-zinc-700">release.json</code></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              onclick="copyToClipboard(document.getElementById('rawJsonTextarea').value, 'JSON manifest disalin!')"
+              class="px-2.5 py-1 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium transition-colors shadow-2xs flex items-center gap-1"
+            >
+              <i class="ti ti-copy text-xs"></i>
+              <span>Salin JSON</span>
+            </button>
+            <button
+              onclick="formatRawJsonTextarea()"
+              class="px-2.5 py-1 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium transition-colors shadow-2xs"
+            >
+              Format
+            </button>
+            <button
+              onclick="saveActiveConfigFromJson()"
+              class="px-3 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium shadow-xs transition-colors flex items-center gap-1"
+            >
+              <i class="ti ti-check text-xs"></i>
+              <span>Perbarui Rilis Aktif (Live Update)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="min-h-[280px]">
+          <textarea
+            id="rawJsonTextarea"
+            class="w-full h-72 bg-zinc-900 text-zinc-100 rounded-lg p-3.5 font-mono text-xs outline-none border border-zinc-800 focus:border-zinc-700 shadow-2xs resize-none"
+            spellcheck="false"
+          ></textarea>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: CHANGELOG & RIWAYAT RILIS -->
+    <!-- ===================================================================== -->
+    <section id="tabChangelog" class="tab-content hidden space-y-6">
+      <div class="bg-white border border-zinc-200/80 rounded-xl p-6 shadow-xs space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100">
+          <div>
+            <h2 class="text-sm font-semibold text-zinc-900 tracking-tight">Riwayat Versi & Changelog</h2>
+            <p class="text-xs text-zinc-500 mt-0.5">
+              Seluruh riwayat rilis METDesk beserta catatan perubahannya. Anda dapat beralih atau melakukan rollback rilis aktif ke versi terdahulu secara instan.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              onclick="loadChangelogHistory()"
+              class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium flex items-center gap-1.5 shadow-2xs transition-colors"
+            >
+              <i class="ti ti-refresh text-xs"></i>
+              <span>Refresh Riwayat</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- History Search & Version Counter -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="relative w-full max-w-xs">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400">
+              <i class="ti ti-search text-xs"></i>
+            </span>
+            <input
+              type="text"
+              id="historySearchInput"
+              oninput="filterChangelogHistory()"
+              placeholder="Cari versi atau perubahan..."
+              class="w-full bg-white border border-zinc-200 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-900 outline-none transition-colors shadow-2xs"
+            />
+          </div>
+          <span id="historyCountBadge" class="text-xs text-zinc-500 font-mono">0 versi tercatat</span>
+        </div>
+
+        <!-- Changelog Timeline Container -->
+        <div id="changelogHistoryTimeline" class="space-y-4 pt-2">
+          <!-- Dynamically populated cards via JavaScript -->
+        </div>
+
+        <!-- Empty State for History -->
+        <div id="historyEmptyState" class="hidden py-12 text-center text-zinc-400">
+          <i class="ti ti-history-off text-3xl mb-2 inline-block"></i>
+          <p class="text-xs">Belum ada riwayat changelog yang cocok dengan pencarian.</p>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: CI/CD & API INTEGRATION GUIDE -->
+    <!-- ===================================================================== -->
+    <section id="tabCiCdGuide" class="tab-content hidden space-y-6">
+      <div class="bg-white border border-zinc-200/80 rounded-xl p-6 shadow-xs space-y-6">
+        <div>
+          <h2 class="text-sm font-semibold text-zinc-900 tracking-tight">Panduan Integrasi CI/CD & REST API</h2>
+          <p class="text-xs text-zinc-500 mt-0.5">
+            Integrasikan pipeline GitHub Actions / GitLab CI untuk mengunggah binary secara otomatis setiap kali rilis baru dibuat.
+          </p>
+        </div>
+
+        <!-- 1. Streaming PUT Upload Command -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-zinc-800">1. Streaming Upload via HTTP PUT (Direkomendasikan untuk CI/CD)</span>
+            <button onclick="copyToClipboard(document.getElementById('snippetPut').innerText, 'Snippet PUT disalin!')" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              <i class="ti ti-copy text-xs"></i> Salin Perintah
+            </button>
+          </div>
+          <div class="bg-zinc-900 text-zinc-100 p-3.5 rounded-lg border border-zinc-800 font-mono text-xs overflow-x-auto shadow-2xs">
+            <pre id="snippetPut">curl -T build/METDesk-2.3.1.dmg \
+  "<span class="text-blue-400">https://metdesk-update-server-dev.hasdev.workers.dev</span>/storage/METDesk-2.3.1.dmg?update_release=true&platform=macos" \
+  -H "X-API-Key: YOUR_UPLOAD_AUTH_KEY"</pre>
+          </div>
+          <p class="text-[11px] text-zinc-500">
+            Gunakan parameter <code class="text-zinc-700 bg-zinc-100 px-1 rounded font-mono">update_release=true</code> agar binary otomatis terpasang ke <code class="text-zinc-700 font-mono">release.json</code> aktif.
+          </p>
+        </div>
+
+        <!-- 2. Multipart Form POST Upload -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-zinc-800">2. Upload via Multipart Form (HTTP POST)</span>
+            <button onclick="copyToClipboard(document.getElementById('snippetPost').innerText, 'Snippet POST disalin!')" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              <i class="ti ti-copy text-xs"></i> Salin Perintah
+            </button>
+          </div>
+          <div class="bg-zinc-900 text-zinc-100 p-3.5 rounded-lg border border-zinc-800 font-mono text-xs overflow-x-auto shadow-2xs">
+            <pre id="snippetPost">curl -X POST \
+  -F "file=@build/METDesk-2.3.1.dmg" \
+  "<span class="text-blue-400">https://metdesk-update-server-dev.hasdev.workers.dev</span>/storage?update_release=true&platform=macos" \
+  -H "X-API-Key: YOUR_UPLOAD_AUTH_KEY"</pre>
+          </div>
+        </div>
+
+        <!-- 3. GitHub Actions Workflow Example -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-zinc-800">3. Contoh Workflow GitHub Actions</span>
+            <button onclick="copyToClipboard(document.getElementById('snippetGha').innerText, 'Workflow disalin!')" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              <i class="ti ti-copy text-xs"></i> Salin Workflow
+            </button>
+          </div>
+          <div class="bg-zinc-900 text-zinc-100 p-3.5 rounded-lg border border-zinc-800 font-mono text-xs overflow-x-auto shadow-2xs">
+            <pre id="snippetGha">name: Publish METDesk Update
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  upload:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload Binary to Update Server
+        run: |
+          curl -T "dist/METDesk-${{ github.ref_name }}.dmg" \
+            "${{ secrets.UPDATE_SERVER_URL }}/storage/METDesk-${{ github.ref_name }}.dmg?update_release=true&platform=macos" \
+            -H "X-API-Key: ${{ secrets.UPLOAD_AUTH_KEY }}"</pre>
+          </div>
+        </div>
+
+        <!-- 4. Endpoints Reference Table -->
+        <div class="space-y-2">
+          <div class="text-xs font-semibold text-zinc-800">4. Referensi REST API Endpoint</div>
+          <div class="overflow-x-auto border border-zinc-200 rounded-lg">
+            <table class="w-full text-left text-xs divide-y divide-zinc-200">
+              <thead class="bg-zinc-50/80 text-zinc-500 font-medium">
+                <tr>
+                  <th class="p-2.5">Method</th>
+                  <th class="p-2.5">Endpoint</th>
+                  <th class="p-2.5">Deskripsi</th>
+                  <th class="p-2.5">Auth</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-100 bg-white font-mono text-[11px]">
+                <tr>
+                  <td class="p-2.5 text-blue-600 font-semibold">GET</td>
+                  <td class="p-2.5 text-zinc-900">/updates</td>
+                  <td class="p-2.5 font-sans text-zinc-600">Ambil metadata rilis aktif (.dmg / .exe URLs, sha256, changelog)</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium text-[10px]">Public</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-blue-600 font-semibold">GET</td>
+                  <td class="p-2.5 text-zinc-900">/storage/:filename</td>
+                  <td class="p-2.5 font-sans text-zinc-600">Download installer (Mendukung HTTP 206 Range requests / resume)</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium text-[10px]">Public</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-amber-600 font-semibold">PUT</td>
+                  <td class="p-2.5 text-zinc-900">/storage/:filename</td>
+                  <td class="p-2.5 font-sans text-zinc-600">Streaming upload binary installer langsung ke Cloudflare R2 / Disk</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 font-medium text-[10px]">X-API-Key</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-emerald-600 font-semibold">POST</td>
+                  <td class="p-2.5 text-zinc-900">/api/storage/set-active</td>
+                  <td class="p-2.5 font-sans text-zinc-600">Pilih binary yang sudah ada sebagai versi rilis aktif untuk platform tertentu</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 font-medium text-[10px]">Session / Key</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-red-600 font-semibold">DELETE</td>
+                  <td class="p-2.5 text-zinc-900">/storage/:filename</td>
+                  <td class="p-2.5 font-sans text-zinc-600">Hapus file binary installer dari storage</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 font-medium text-[10px]">Session / Key</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 3. MODALS (Shadcn Dialogs) -->
+  <!-- ========================================================================= -->
+
+  <!-- Modal 1: Rename Binary -->
+  <div id="renameModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+    <div class="bg-white border border-zinc-200 rounded-xl p-5 w-full max-w-md shadow-lg space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <h3 class="text-xs font-semibold text-zinc-900">Ganti Nama File Binary</h3>
+        <button onclick="closeRenameModal()" class="text-zinc-400 hover:text-zinc-600 text-base leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-medium text-zinc-500 mb-1">Nama File Saat Ini</label>
+          <input type="text" id="renameOldName" readonly class="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-xs font-mono text-zinc-600 outline-none cursor-not-allowed">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-zinc-700 mb-1">Nama File Baru</label>
+          <input type="text" id="renameNewName" class="w-full bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-3 py-1.5 text-xs font-mono text-zinc-900 outline-none shadow-2xs">
+        </div>
+
+        <div class="flex items-center gap-2 p-2.5 rounded-lg bg-zinc-50 border border-zinc-200">
+          <input type="checkbox" id="renameUpdateRelease" checked class="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer">
+          <label for="renameUpdateRelease" class="text-xs text-zinc-700 cursor-pointer">
+            Otomatis sinkronkan nama baru ke release.json jika file ini rilis aktif
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+        <button onclick="closeRenameModal()" class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium transition-colors shadow-2xs">
+          Batal
+        </button>
+        <button onclick="submitRename()" class="px-3.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition-colors shadow-xs">
+          Simpan Nama Baru
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Set Active Platform Binary -->
+  <div id="setActiveModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+    <div class="bg-white border border-zinc-200 rounded-xl p-5 w-full max-w-md shadow-lg space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <h3 class="text-xs font-semibold text-zinc-900">Jadikan Rilis Aktif</h3>
+        <button onclick="closeSetActiveModal()" class="text-zinc-400 hover:text-zinc-600 text-base leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-medium text-zinc-500 mb-1">Nama Binary</label>
+          <input type="text" id="setActiveFilename" readonly class="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-xs font-mono text-zinc-700 outline-none cursor-not-allowed">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-zinc-700 mb-1">Target Platform</label>
+          <select id="setActivePlatform" class="w-full bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-3 py-1.5 text-xs text-zinc-900 outline-none shadow-2xs">
+            <option value="macos">macOS (.dmg, .pkg)</option>
+            <option value="windows">Windows (.exe, .msi)</option>
+            <option value="linux">Linux (.AppImage, .deb, .rpm)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-zinc-700 mb-1">Nomor Versi Rilis</label>
+          <input type="text" id="setActiveVersion" placeholder="Contoh: 2.3.1" class="w-full bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-3 py-1.5 text-xs font-mono text-zinc-900 outline-none shadow-2xs">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+        <button onclick="closeSetActiveModal()" class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium transition-colors shadow-2xs">
+          Batal
+        </button>
+        <button onclick="submitSetActive()" class="px-3.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors shadow-xs">
+          Aktifkan Rilis
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Bulk Delete Confirmation -->
+  <div id="bulkDeleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+    <div class="bg-white border border-zinc-200 rounded-xl p-5 w-full max-w-md shadow-lg space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <h3 class="text-xs font-semibold text-red-600 flex items-center gap-1.5">
+          <i class="ti ti-alert-triangle"></i> Konfirmasi Hapus Massal
+        </h3>
+        <button onclick="closeBulkDeleteModal()" class="text-zinc-400 hover:text-zinc-600 text-base leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-xs text-zinc-600">
+          Apakah kamu yakin ingin menghapus <strong id="bulkDeleteCount" class="text-zinc-900">0</strong> file binary terpilih dari storage?
+        </p>
+        <div id="bulkDeleteList" class="max-h-36 overflow-y-auto p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 font-mono text-[11px] text-zinc-600 space-y-1"></div>
+        <p class="text-[11px] text-red-600 font-medium">Tindakan ini tidak dapat dibatalkan.</p>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+        <button onclick="closeBulkDeleteModal()" class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium transition-colors shadow-2xs">
+          Batal
+        </button>
+        <button onclick="submitBulkDelete()" class="px-3.5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition-colors shadow-xs">
+          Hapus File Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Binary Details & Range Download Test -->
+  <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+    <div class="bg-white border border-zinc-200 rounded-xl p-5 w-full max-w-lg shadow-lg space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <h3 class="text-xs font-semibold text-zinc-900 flex items-center gap-2">
+          <span id="detailFileIcon" class="w-6 h-6 rounded bg-zinc-100 text-zinc-700 flex items-center justify-center text-sm border border-zinc-200"></span>
+          <span id="detailFileName" class="font-mono text-zinc-900">METDesk.dmg</span>
+        </h3>
+        <button onclick="closeDetailModal()" class="text-zinc-400 hover:text-zinc-600 text-base leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3 p-3 rounded-lg bg-zinc-50 border border-zinc-200 font-mono text-[11px]">
+          <div>
+            <span class="text-zinc-400 block text-[10px]">UKURAN FILE:</span>
+            <span id="detailFileSize" class="text-zinc-900 font-bold">30.0 MB</span>
+          </div>
+          <div>
+            <span class="text-zinc-400 block text-[10px]">CONTENT TYPE:</span>
+            <span id="detailContentType" class="text-zinc-700">application/octet-stream</span>
+          </div>
+          <div class="col-span-2">
+            <span class="text-zinc-400 block text-[10px]">SHA-256 CHECKSUM:</span>
+            <div class="flex items-center justify-between">
+              <span id="detailSha256" class="text-zinc-900 break-all select-all font-mono text-[10px]">-</span>
+              <button onclick="copyToClipboard(document.getElementById('detailSha256').innerText, 'SHA-256 disalin!')" class="text-blue-600 hover:text-blue-700 ml-2 p-1"><i class="ti ti-copy"></i></button>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <span class="text-zinc-400 block text-[10px]">URL DOWNLOAD:</span>
+            <div class="flex items-center justify-between">
+              <span id="detailDownloadUrl" class="text-blue-600 break-all select-all font-mono text-[10px]">-</span>
+              <button onclick="copyToClipboard(document.getElementById('detailDownloadUrl').innerText, 'Link download disalin!')" class="text-blue-600 hover:text-blue-700 ml-2 p-1"><i class="ti ti-copy"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Range Request Quick Test Box -->
+        <div class="space-y-1.5 pt-2">
+          <span class="text-xs font-semibold text-zinc-800">Uji HTTP 206 Partial Content (Range Request)</span>
+          <div class="p-3 bg-zinc-900 rounded-lg border border-zinc-800 font-mono text-[11px] text-zinc-200 space-y-2 shadow-2xs">
+            <div id="detailCurlRange" class="break-all select-all text-blue-400">curl -H "Range: bytes=0-1048576" URL -o chunk.part</div>
+            <button onclick="copyToClipboard(document.getElementById('detailCurlRange').innerText, 'Curl Range disalin!')" class="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1">
+              <i class="ti ti-copy"></i> Salin Perintah Range
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+        <button onclick="closeDetailModal()" class="px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-medium transition-colors shadow-2xs">
+          Tutup
+        </button>
+        <a id="detailDownloadBtn" href="#" download class="px-3.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition-colors shadow-xs flex items-center gap-1.5">
+          <i class="ti ti-download text-xs"></i> Unduh File
+        </a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 4. CORE APPLICATION JAVASCRIPT -->
+  <!-- ========================================================================= -->
+  <script>
+    // State management
+    let isAuthenticated = false;
+    let authRequired = true;
+    let activeReleaseData = null;
+    let binariesList = [];
+    let changelogHistoryList = [];
+    let currentSavedDraft = null;
+    let currentInstallerSourceMode = "existing"; // 'existing' | 'upload'
+    let selectedExistingBinary = null;
+    let fmSelectedKeys = new Set();
+    let currentFmView = "grid";
+
+    // --- Authentication Flow ---
+    async function checkAuthStatus() {
+      try {
+        const res = await fetch("/api/auth/status");
+        if (res.ok) {
+          const data = await res.json();
+          authRequired = data.auth_required;
+          isAuthenticated = data.is_authenticated || data.authenticated;
+
+          if (!authRequired || isAuthenticated) {
+            document.getElementById("currentUsername").innerText = data.username || "admin";
+            showDashboardView();
+            initDashboard();
+          } else {
+            showLoginView();
+          }
+        } else {
+          showLoginView();
+        }
+      } catch (err) {
+        showLoginView();
+      }
+    }
+
+    function showLoginView() {
+      document.getElementById("loginView").classList.remove("hidden");
+      document.getElementById("dashboardView").classList.add("hidden");
+    }
+
+    function showDashboardView() {
+      document.getElementById("loginView").classList.add("hidden");
+      document.getElementById("dashboardView").classList.remove("hidden");
+    }
+
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      const usernameInput = document.getElementById("loginUsername").value.trim();
+      const passwordInput = document.getElementById("loginPassword").value;
+      const alertBox = document.getElementById("loginAlert");
+      const submitBtn = document.getElementById("loginSubmitBtn");
+      const btnText = document.getElementById("loginBtnText");
+      const spinner = document.getElementById("loginSpinner");
+
+      alertBox.classList.add("hidden");
+      submitBtn.disabled = true;
+      btnText.innerText = "Memverifikasi...";
+      spinner.classList.remove("hidden");
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: usernameInput, password: passwordInput })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          document.getElementById("currentUsername").innerText = data.username || usernameInput;
+          showDashboardView();
+          initDashboard();
+        } else {
+          alertBox.classList.remove("hidden");
+          document.getElementById("loginAlertText").innerText = data.error || "Username atau password salah!";
+        }
+      } catch (err) {
+        alertBox.classList.remove("hidden");
+        document.getElementById("loginAlertText").innerText = "Gagal terhubung ke server auth.";
+      } finally {
+        submitBtn.disabled = false;
+        btnText.innerText = "Masuk ke Dashboard";
+        spinner.classList.add("hidden");
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await fetch("/api/logout", { method: "POST" });
+      } catch {}
+      location.reload();
+    }
+
+    function togglePasswordVisibility() {
+      const pwd = document.getElementById("loginPassword");
+      const icon = document.getElementById("eyeIcon");
+      if (pwd.type === "password") {
+        pwd.type = "text";
+        icon.className = "ti ti-eye-off text-sm";
+      } else {
+        pwd.type = "password";
+        icon.className = "ti ti-eye text-sm";
+      }
+    }
+
+    // --- Tab Navigation (Shadcn styling) ---
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      const activeSection = document.getElementById(tabId);
+      if (activeSection) activeSection.classList.remove("hidden");
+
+      const btnMap = {
+        tabFileManager: "tabBtn_fileManager",
+        tabUploadRelease: "tabBtn_uploadRelease",
+        tabActiveConfig: "tabBtn_activeConfig",
+        tabChangelog: "tabBtn_changelog",
+        tabCiCdGuide: "tabBtn_ciCdGuide"
+      };
+
+      // Reset all buttons to inactive shadcn style
+      Object.values(btnMap).forEach(btnId => {
+        const b = document.getElementById(btnId);
+        if (b) {
+          b.className = "tab-btn px-3.5 py-1.5 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50 flex items-center gap-2 transition-all";
+        }
+      });
+
+      // Set active button
+      const activeBtn = document.getElementById(btnMap[tabId]);
+      if (activeBtn) {
+        activeBtn.className = "tab-btn px-3.5 py-1.5 rounded-md text-zinc-900 bg-white shadow-xs font-semibold flex items-center gap-2 transition-all";
+      }
+
+      if (tabId === "tabChangelog") {
+        loadChangelogHistory();
+      } else if (tabId === "tabUploadRelease") {
+        checkDraftAvailable();
+      } else if (tabId === "tabActiveConfig") {
+        loadReleaseData();
+      }
+    }
+
+    // --- Initialization & Data Fetching ---
+    async function initDashboard() {
+      await Promise.all([
+        loadReleaseData(),
+        loadBinaries(),
+        checkDraftAvailable()
+      ]);
+      renderPublishChangelog();
+      updateCurlSnippets();
+    }
+
+    async function loadReleaseData() {
+      try {
+        const res = await fetch("/updates");
+        if (res.ok) {
+          activeReleaseData = await res.json();
+          renderActiveConfigForm();
+        }
+      } catch (err) {
+        console.error("Gagal memuat release metadata:", err);
+      }
+    }
+
+    async function loadBinaries() {
+      try {
+        const res = await fetch("/api/binaries");
+        if (res.ok) {
+          const data = await res.json();
+          binariesList = data.objects || [];
+          updateStorageStats(data.stats, data.active_release);
+          filterBinariesList();
+          populateBinarySelectOptions();
+        }
+      } catch (err) {
+        showNotify("Gagal memuat daftar file binary storage.", "error");
+      }
+    }
+
+    function updateStorageStats(stats, activeRel) {
+      if (!stats) return;
+      document.getElementById("statTotalObjects").innerText = `${stats.total_objects} files`;
+      document.getElementById("statTotalSize").innerText = stats.total_formatted;
+      document.getElementById("statMacosCount").innerText = `${stats.macos_count} files`;
+      document.getElementById("statWindowsCount").innerText = `${stats.windows_count} files`;
+      const linuxArchives = (stats.linux_count || 0) + (stats.archive_count || 0);
+      document.getElementById("statArchiveCount").innerText = `${linuxArchives} files`;
+
+      document.getElementById("storageStatsBadge").innerText = `${stats.total_objects} files (${stats.total_formatted})`;
+      if (stats.storage_dir) {
+        document.getElementById("storageDirPath").innerText = stats.storage_dir.replace(/^.*\/([^\/]+)$/, "$1");
+      }
+    }
+
+    // --- Tab 1: File Manager Logic (Light Mode) ---
+    function setFmView(viewMode) {
+      currentFmView = viewMode;
+      const gridBtn = document.getElementById("viewBtnGrid");
+      const listBtn = document.getElementById("viewBtnList");
+      const gridContainer = document.getElementById("fmGridContainer");
+      const tableContainer = document.getElementById("fmTableContainer");
+
+      if (viewMode === "grid") {
+        gridContainer.classList.remove("hidden");
+        tableContainer.classList.add("hidden");
+        gridBtn.className = "p-1 rounded text-zinc-900 bg-white shadow-2xs transition-all";
+        listBtn.className = "p-1 rounded text-zinc-500 hover:text-zinc-900 transition-all";
+      } else {
+        gridContainer.classList.add("hidden");
+        tableContainer.classList.remove("hidden");
+        listBtn.className = "p-1 rounded text-zinc-900 bg-white shadow-2xs transition-all";
+        gridBtn.className = "p-1 rounded text-zinc-500 hover:text-zinc-900 transition-all";
+      }
+    }
+
+    function filterBinariesList() {
+      const query = (document.getElementById("fmSearchInput").value || "").toLowerCase().trim();
+      const platformFilter = document.getElementById("fmPlatformFilter").value;
+
+      const filtered = binariesList.filter(file => {
+        const nameMatch = file.name.toLowerCase().includes(query);
+        if (!nameMatch) return false;
+
+        const isMac = file.name.endsWith(".dmg") || file.name.endsWith(".pkg") || file.name.endsWith(".app");
+        const isWin = file.name.endsWith(".exe") || file.name.endsWith(".msi");
+        const isLinux = file.name.endsWith(".AppImage") || file.name.endsWith(".appimage") || file.name.endsWith(".deb") || file.name.endsWith(".rpm");
+        const isArchive = file.name.endsWith(".zip") || file.name.endsWith(".tar.gz") || file.name.endsWith(".tgz") || file.name.endsWith(".tar.xz");
+
+        if (platformFilter === "macos") return isMac;
+        if (platformFilter === "windows") return isWin;
+        if (platformFilter === "linux") return isLinux;
+        if (platformFilter === "archive") return isArchive;
+        return true;
+      });
+
+      renderBinaries(filtered);
+    }
+
+    function renderBinaries(filtered) {
+      const gridContainer = document.getElementById("fmGridContainer");
+      const tableBody = document.getElementById("fmTableBody");
+      const emptyState = document.getElementById("fmEmptyState");
+
+      if (filtered.length === 0) {
+        gridContainer.innerHTML = "";
+        tableBody.innerHTML = "";
+        emptyState.classList.remove("hidden");
+        return;
+      }
+      emptyState.classList.add("hidden");
+
+      const activeMac = activeReleaseData?.downloads?.macos?.filename || "";
+      const activeWin = activeReleaseData?.downloads?.windows?.filename || "";
+      const activeLinux = activeReleaseData?.downloads?.linux?.filename || "";
+      const activeVer = activeReleaseData?.version || "2.3.0";
+
+      // 1. Render Grid Cards
+      gridContainer.innerHTML = "";
+      filtered.forEach(file => {
+        const isMac = file.name.endsWith(".dmg") || file.name.endsWith(".pkg") || file.name.endsWith(".app");
+        const isWin = file.name.endsWith(".exe") || file.name.endsWith(".msi");
+        const isLinux = file.name.endsWith(".AppImage") || file.name.endsWith(".appimage") || file.name.endsWith(".deb") || file.name.endsWith(".rpm");
+        const isArchive = file.name.endsWith(".zip") || file.name.endsWith(".tar.gz") || file.name.endsWith(".tgz");
+
+        let iconHtml = '<i class="ti ti-file text-zinc-500"></i>';
+        let platformBadge = `<span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 font-mono text-[10px]">Generic</span>`;
+        if (isMac) {
+          iconHtml = '<i class="ti ti-brand-apple text-zinc-800"></i>';
+          platformBadge = `<span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 font-mono text-[10px] flex items-center gap-1"><i class="ti ti-brand-apple text-[11px]"></i>macOS</span>`;
+        } else if (isWin) {
+          iconHtml = '<i class="ti ti-brand-windows text-blue-600"></i>';
+          platformBadge = `<span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono text-[10px] flex items-center gap-1"><i class="ti ti-brand-windows text-[11px]"></i>Windows</span>`;
+        } else if (isLinux) {
+          iconHtml = '<i class="ti ti-brand-redhat text-amber-600"></i>';
+          platformBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-mono text-[10px] flex items-center gap-1"><i class="ti ti-brand-redhat text-[11px]"></i>Linux</span>`;
+        } else if (isArchive) {
+          iconHtml = '<i class="ti ti-file-zip text-zinc-600"></i>';
+          platformBadge = `<span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 font-mono text-[10px] flex items-center gap-1"><i class="ti ti-file-zip text-[11px]"></i>Archive</span>`;
+        }
+
+        const isActive = file.is_active_macos || file.is_active_windows || file.is_active_linux || file.name === activeMac || file.name === activeWin || file.name === activeLinux;
+        let activeBadge = "";
+        if (file.is_active_macos || file.name === activeMac) {
+          activeBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>macOS (v${activeVer})</span>`;
+        } else if (file.is_active_windows || file.name === activeWin) {
+          activeBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Windows (v${activeVer})</span>`;
+        } else if (file.is_active_linux || file.name === activeLinux) {
+          activeBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Linux (v${activeVer})</span>`;
+        }
+
+        const isChecked = fmSelectedKeys.has(file.name);
+        const shaShort = file.sha256 ? `${file.sha256.substring(0, 14)}...` : "-";
+
+        const card = document.createElement("div");
+        card.className = `p-4 rounded-xl bg-white border ${isActive ? 'border-emerald-500/60 ring-1 ring-emerald-500/20' : 'border-zinc-200/80 hover:border-zinc-300'} space-y-3.5 transition-colors shadow-xs flex flex-col justify-between`;
+        card.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                ${platformBadge}
+                ${activeBadge}
+              </div>
+              <input type="checkbox" onchange="toggleFmSelect('${file.name}')" ${isChecked ? 'checked' : ''} class="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 mt-0.5 cursor-pointer">
+            </div>
+
+            <div class="flex items-center gap-3 cursor-pointer" onclick="openFileDetails('${file.name}')" title="Klik untuk melihat detail lengkap">
+              <div class="w-9 h-9 rounded-lg bg-zinc-50 border border-zinc-200 flex items-center justify-center text-lg flex-shrink-0 shadow-2xs">
+                ${iconHtml}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-bold text-zinc-900 font-mono text-xs truncate hover:text-blue-600 transition-colors" title="${file.name}">
+                  ${file.name}
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-zinc-500 mt-0.5">
+                  <span class="font-medium text-zinc-700 font-mono">${file.size_formatted}</span>
+                  <span>•</span>
+                  <span>${file.modified || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SHA-256 Checksum Snippet -->
+            <div class="p-2 bg-zinc-50 rounded-lg border border-zinc-200 flex items-center justify-between text-[10px] font-mono text-zinc-600">
+              <span class="truncate" title="${file.sha256 || ''}">SHA: ${shaShort}</span>
+              ${file.sha256 ? `<button onclick="copyToClipboard('${file.sha256}', 'SHA-256 disalin!')" title="Salin SHA-256" class="hover:text-zinc-900 ml-1 flex-shrink-0 p-0.5"><i class="ti ti-copy text-xs"></i></button>` : ''}
+            </div>
+          </div>
+
+          <!-- Card Actions Grid -->
+          <div class="pt-2.5 border-t border-zinc-100 grid grid-cols-4 gap-1 text-[11px]">
+            <a href="${file.url}" download class="p-1.5 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 hover:text-zinc-900 text-center transition-colors font-medium flex items-center justify-center gap-1 shadow-2xs" title="Unduh File">
+              <i class="ti ti-download text-xs"></i> Unduh
+            </a>
+            <button onclick="copyToClipboard('${file.url}', 'URL file disalin!')" class="p-1.5 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-medium flex items-center justify-center gap-1 shadow-2xs" title="Salin Link URL">
+              <i class="ti ti-link text-xs"></i> Link
+            </button>
+            <button onclick="openSetActiveModal('${file.name}')" class="p-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 transition-colors font-medium flex items-center justify-center gap-1 shadow-2xs" title="Jadikan Rilis Aktif">
+              <i class="ti ti-circle-check text-xs"></i> Rilis
+            </button>
+            <button onclick="openRenameModal('${file.name}')" class="p-1.5 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors font-medium flex items-center justify-center gap-1 shadow-2xs" title="Ganti Nama File">
+              <i class="ti ti-edit text-xs"></i> Rename
+            </button>
+          </div>
+        `;
+        gridContainer.appendChild(card);
+      });
+
+      // 2. Render Table Rows
+      tableBody.innerHTML = "";
+      filtered.forEach(file => {
+        const isMac = file.name.endsWith(".dmg") || file.name.endsWith(".pkg") || file.name.endsWith(".app");
+        const isWin = file.name.endsWith(".exe") || file.name.endsWith(".msi");
+        const isLinux = file.name.endsWith(".AppImage") || file.name.endsWith(".appimage") || file.name.endsWith(".deb") || file.name.endsWith(".rpm");
+        const isArchive = file.name.endsWith(".zip") || file.name.endsWith(".tar.gz") || file.name.endsWith(".tgz");
+        let iconHtml = '<i class="ti ti-file text-zinc-400"></i>';
+        if (isMac) iconHtml = '<i class="ti ti-brand-apple text-zinc-800"></i>';
+        else if (isWin) iconHtml = '<i class="ti ti-brand-windows text-blue-600"></i>';
+        else if (isLinux) iconHtml = '<i class="ti ti-brand-redhat text-amber-600"></i>';
+        else if (isArchive) iconHtml = '<i class="ti ti-file-zip text-zinc-600"></i>';
+
+        const shaShort = file.sha256 ? `${file.sha256.substring(0, 14)}...` : "-";
+        const isChecked = fmSelectedKeys.has(file.name);
+        const isActive = file.is_active_macos || file.is_active_windows || file.is_active_linux || file.name === activeMac || file.name === activeWin || file.name === activeLinux;
+
+        let statusText = `<span class="text-zinc-400">Storage</span>`;
+        if (file.is_active_macos || file.name === activeMac) {
+          statusText = `<span class="text-emerald-700 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>macOS (v${activeVer})</span>`;
+        } else if (file.is_active_windows || file.name === activeWin) {
+          statusText = `<span class="text-emerald-700 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Windows (v${activeVer})</span>`;
+        } else if (file.is_active_linux || file.name === activeLinux) {
+          statusText = `<span class="text-emerald-700 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Linux (v${activeVer})</span>`;
+        }
+
+        const tr = document.createElement("tr");
+        tr.className = `hover:bg-zinc-50/70 transition-colors ${isActive ? 'bg-emerald-50/30' : ''}`;
+        tr.innerHTML = `
+          <td class="p-3 w-8">
+            <input type="checkbox" onchange="toggleFmSelect('${file.name}')" ${isChecked ? 'checked' : ''} class="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer">
+          </td>
+          <td class="p-3">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 flex items-center justify-center text-sm">${iconHtml}</span>
+              <button onclick="openFileDetails('${file.name}')" class="font-bold text-zinc-900 hover:text-blue-600 text-left font-mono truncate max-w-[200px]" title="${file.name}">
+                ${file.name}
+              </button>
+            </div>
+          </td>
+          <td class="p-3 text-zinc-600">${isMac ? 'macOS' : (isWin ? 'Windows' : (isLinux ? 'Linux' : 'Generic'))}</td>
+          <td class="p-3 text-zinc-800 font-semibold">${file.size_formatted}</td>
+          <td class="p-3 text-zinc-600">
+            <div class="flex items-center gap-1.5">
+              <span title="${file.sha256 || ''}">${shaShort}</span>
+              ${file.sha256 ? `<button onclick="copyToClipboard('${file.sha256}', 'SHA-256 disalin!')" title="Salin SHA-256" class="hover:text-zinc-900 p-0.5"><i class="ti ti-copy text-xs"></i></button>` : ''}
+            </div>
+          </td>
+          <td class="p-3 text-zinc-500">${file.modified || '-'}</td>
+          <td class="p-3 font-sans">${statusText}</td>
+          <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
+            <a href="${file.url}" download class="text-blue-600 hover:text-blue-800 text-[11px] font-sans inline-flex items-center gap-1"><i class="ti ti-download text-xs"></i>Unduh</a>
+            <button onclick="copyToClipboard('${file.url}', 'URL file disalin!')" class="text-zinc-600 hover:text-zinc-900 text-[11px] font-sans inline-flex items-center gap-1"><i class="ti ti-link text-xs"></i>Link</button>
+            <button onclick="openSetActiveModal('${file.name}')" class="text-emerald-700 hover:text-emerald-900 text-[11px] font-sans inline-flex items-center gap-1"><i class="ti ti-circle-check text-xs"></i>Set Rilis</button>
+            <button onclick="openRenameModal('${file.name}')" class="text-zinc-600 hover:text-zinc-900 text-[11px] font-sans inline-flex items-center gap-1"><i class="ti ti-edit text-xs"></i>Rename</button>
+            <button onclick="deleteBinary('${file.name}')" class="text-red-600 hover:text-red-800 text-[11px] font-sans inline-flex items-center gap-1"><i class="ti ti-trash text-xs"></i>Hapus</button>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    function toggleFmSelect(filename) {
+      if (fmSelectedKeys.has(filename)) {
+        fmSelectedKeys.delete(filename);
+      } else {
+        fmSelectedKeys.add(filename);
+      }
+      updateFmSelectionState();
+    }
+
+    function toggleFmSelectAll(checked) {
+      if (checked) {
+        binariesList.forEach(f => fmSelectedKeys.add(f.name));
+      } else {
+        fmSelectedKeys.clear();
+      }
+      filterBinariesList();
+      updateFmSelectionState();
+    }
+
+    function updateFmSelectionState() {
+      const count = fmSelectedKeys.size;
+      const bulkBtn = document.getElementById("fmBulkDeleteBtn");
+      const countLabel = document.getElementById("fmSelectedCount");
+      countLabel.innerText = count;
+
+      if (count > 0) {
+        bulkBtn.classList.remove("hidden");
+      } else {
+        bulkBtn.classList.add("hidden");
+      }
+    }
+
+    // --- Bulk & Single Deletion ---
+    function openBulkDeleteModal() {
+      if (fmSelectedKeys.size === 0) return;
+      document.getElementById("bulkDeleteCount").innerText = fmSelectedKeys.size;
+      const listEl = document.getElementById("bulkDeleteList");
+      listEl.innerHTML = Array.from(fmSelectedKeys).map(k => `<div>• ${k}</div>`).join("");
+      document.getElementById("bulkDeleteModal").classList.remove("hidden");
+    }
+
+    function closeBulkDeleteModal() {
+      document.getElementById("bulkDeleteModal").classList.add("hidden");
+    }
+
+    async function submitBulkDelete() {
+      closeBulkDeleteModal();
+      const files = Array.from(fmSelectedKeys);
+      try {
+        const res = await fetch("/api/storage/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filenames: files })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`${data.deleted.length} file berhasil dihapus dari storage.`, "success");
+          fmSelectedKeys.clear();
+          updateFmSelectionState();
+          await loadBinaries();
+        } else {
+          showNotify(data.error || "Gagal menghapus file.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server.", "error");
+      }
+    }
+
+    async function deleteBinary(filename) {
+      if (!confirm(`Hapus binary '${filename}' dari storage?`)) return;
+      try {
+        const res = await fetch(`/storage/${encodeURIComponent(filename)}`, { method: "DELETE" });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showNotify(`Binary ${filename} berhasil dihapus.`, "success");
+          fmSelectedKeys.delete(filename);
+          updateFmSelectionState();
+          await loadBinaries();
+        } else {
+          showNotify(data.error || "Gagal menghapus binary.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server untuk menghapus file.", "error");
+      }
+    }
+
+    // --- Rename Modal Logic ---
+    function openRenameModal(oldName) {
+      document.getElementById("renameOldName").value = oldName;
+      document.getElementById("renameNewName").value = oldName;
+      document.getElementById("renameModal").classList.remove("hidden");
+    }
+
+    function closeRenameModal() {
+      document.getElementById("renameModal").classList.add("hidden");
+    }
+
+    async function submitRename() {
+      const oldName = document.getElementById("renameOldName").value.trim();
+      const newName = document.getElementById("renameNewName").value.trim();
+      const updateRelease = document.getElementById("renameUpdateRelease").checked;
+
+      if (!newName || oldName === newName) {
+        closeRenameModal();
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/storage/rename", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ old_name: oldName, new_name: newName, update_release: updateRelease })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`Berhasil mengubah nama menjadi ${newName}`, "success");
+          closeRenameModal();
+          await Promise.all([loadBinaries(), loadReleaseData()]);
+        } else {
+          showNotify(data.error || "Gagal mengubah nama file.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server rename.", "error");
+      }
+    }
+
+    // --- Set Active Modal Logic ---
+    function openSetActiveModal(filename) {
+      document.getElementById("setActiveFilename").value = filename;
+      const lower = filename.toLowerCase();
+      let detectedPlatform = "windows";
+      if (lower.endsWith(".dmg") || lower.endsWith(".pkg") || lower.endsWith(".app")) {
+        detectedPlatform = "macos";
+      } else if (lower.endsWith(".appimage") || lower.endsWith(".deb") || lower.endsWith(".rpm")) {
+        detectedPlatform = "linux";
+      }
+      document.getElementById("setActivePlatform").value = detectedPlatform;
+
+      const verMatch = filename.match(/(\d+\.\d+\.\d+)/);
+      document.getElementById("setActiveVersion").value = verMatch ? verMatch[1] : (activeReleaseData?.version || "2.3.0");
+      document.getElementById("setActiveModal").classList.remove("hidden");
+    }
+
+    function closeSetActiveModal() {
+      document.getElementById("setActiveModal").classList.add("hidden");
+    }
+
+    async function submitSetActive() {
+      const filename = document.getElementById("setActiveFilename").value;
+      const platform = document.getElementById("setActivePlatform").value;
+      const version = document.getElementById("setActiveVersion").value.trim();
+
+      try {
+        const res = await fetch("/api/storage/set-active", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename, platform, version })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`Binary ${filename} berhasil dijadikan rilis aktif untuk ${platform}!`, "success");
+          closeSetActiveModal();
+          await Promise.all([loadBinaries(), loadReleaseData()]);
+        } else {
+          showNotify(data.error || "Gagal mengaktifkan rilis.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server.", "error");
+      }
+    }
+
+    // --- File Details & Range Test Modal ---
+    function openFileDetails(filename) {
+      const file = binariesList.find(f => f.name === filename);
+      if (!file) return;
+
+      const isMac = file.name.endsWith(".dmg") || file.name.endsWith(".pkg") || file.name.endsWith(".app");
+      const isWin = file.name.endsWith(".exe") || file.name.endsWith(".msi");
+      const isLinux = file.name.endsWith(".AppImage") || file.name.endsWith(".appimage") || file.name.endsWith(".deb") || file.name.endsWith(".rpm");
+
+      let icon = '<i class="ti ti-file"></i>';
+      if (isMac) icon = '<i class="ti ti-brand-apple"></i>';
+      else if (isWin) icon = '<i class="ti ti-brand-windows text-blue-600"></i>';
+      else if (isLinux) icon = '<i class="ti ti-brand-redhat text-amber-600"></i>';
+
+      document.getElementById("detailFileIcon").innerHTML = icon;
+      document.getElementById("detailFileName").innerText = file.name;
+      document.getElementById("detailFileSize").innerText = `${file.size_formatted} (${(file.size_bytes || 0).toLocaleString()} bytes)`;
+      document.getElementById("detailContentType").innerText = file.content_type || "application/octet-stream";
+      document.getElementById("detailSha256").innerText = file.sha256 || "-";
+      document.getElementById("detailDownloadUrl").innerText = file.url || `${window.location.origin}/storage/${file.name}`;
+      document.getElementById("detailDownloadBtn").href = file.url || `${window.location.origin}/storage/${file.name}`;
+
+      const origin = window.location.origin;
+      const curlCmd = `curl -H "Range: bytes=0-1048576" "${origin}/storage/${file.name}" -o chunk_1mb.part`;
+      document.getElementById("detailCurlRange").innerText = curlCmd;
+
+      document.getElementById("detailModal").classList.remove("hidden");
+    }
+
+    function closeDetailModal() {
+      document.getElementById("detailModal").classList.add("hidden");
+    }
+
+    // --- Quick Upload Queue in File Manager ---
+    async function handleFmFilesSelected(files) {
+      if (!files || files.length === 0) return;
+      const queueEl = document.getElementById("fmUploadQueue");
+      const queueItems = document.getElementById("fmQueueItems");
+      const countEl = document.getElementById("fmUploadCount");
+      const statusEl = document.getElementById("fmUploadStatus");
+
+      queueEl.classList.remove("hidden");
+      countEl.innerText = files.length;
+      statusEl.innerText = "Mengunggah streaming...";
+      queueItems.innerHTML = "";
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const row = document.createElement("div");
+        row.className = "p-2 rounded-lg bg-zinc-50 border border-zinc-200 text-xs flex items-center justify-between font-mono";
+        row.innerHTML = `
+          <div class="truncate max-w-xs text-zinc-800">
+            <span>${file.name}</span>
+            <span class="text-zinc-500 text-[10px]">(${(file.size / (1024 * 1024)).toFixed(1)} MB)</span>
+          </div>
+          <div id="fmItemStatus_${i}" class="text-[11px] text-zinc-500 flex items-center gap-1">
+            <svg class="animate-spin w-3 h-3 text-zinc-700" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            <span>Uploading...</span>
+          </div>
+        `;
+        queueItems.appendChild(row);
+
+        try {
+          const res = await fetch(`/storage/${encodeURIComponent(file.name)}`, {
+            method: "PUT",
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+            body: file
+          });
+          const data = await res.json();
+          const itemStatus = document.getElementById(`fmItemStatus_${i}`);
+          if (res.ok && data.success) {
+            itemStatus.innerHTML = '<span class="text-emerald-700 font-semibold flex items-center gap-1"><i class="ti ti-check text-xs"></i>Selesai</span>';
+          } else {
+            itemStatus.innerHTML = `<span class="text-red-600 font-medium" title="${data.error || 'Gagal'}">Gagal: ${data.error || 'Error'}</span>`;
+          }
+        } catch (err) {
+          document.getElementById(`fmItemStatus_${i}`).innerHTML = '<span class="text-red-600 font-medium">Gagal upload</span>';
+        }
+      }
+
+      statusEl.innerText = "Semua upload selesai!";
+      showNotify("Proses upload antrean file selesai.", "success");
+      await loadBinaries();
+    }
+
+    // --- Sample Binary Generator ---
+    async function generateSampleBinary() {
+      const filename = prompt("Masukkan nama binary dummy untuk testing (.dmg, .exe, .AppImage, .zip):", "METDesk-test-2.3.5.exe");
+      if (!filename) return;
+
+      try {
+        const res = await fetch("/api/generate-binary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename, size_mb: 1 })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`Sample binary '${data.filename}' berhasil dibuat!`, "success");
+          await loadBinaries();
+        } else {
+          showNotify(data.error || "Gagal membuat sample binary.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server generator.", "error");
+      }
+    }
+
+    // --- Tab 2: Publish Release & Draft Flow ---
+    let publishChangelogItems = [
+      { type: "feature", category: "Baru", text: "Integrasi notifikasi desktop untuk seluruh aktivitas" },
+      { type: "improvement", category: "Peningkatan", text: "Optimasi kecepatan parsing PDF dan memori" },
+      { type: "fix", category: "Fix", text: "Perbaikan sinkronisasi serial number tersimpan" }
+    ];
+
+    function setInstallerSourceMode(mode) {
+      currentInstallerSourceMode = mode;
+      const btnExisting = document.getElementById("srcBtnExisting");
+      const btnUpload = document.getElementById("srcBtnUpload");
+      const containerExisting = document.getElementById("srcContainerExisting");
+      const containerUpload = document.getElementById("srcContainerUpload");
+
+      if (mode === "existing") {
+        containerExisting.classList.remove("hidden");
+        containerUpload.classList.add("hidden");
+        btnExisting.className = "px-2.5 py-1 rounded-md bg-white text-zinc-900 font-semibold shadow-2xs flex items-center gap-1.5 transition-all";
+        btnUpload.className = "px-2.5 py-1 rounded-md text-zinc-500 hover:text-zinc-900 flex items-center gap-1.5 transition-all";
+      } else {
+        containerExisting.classList.add("hidden");
+        containerUpload.classList.remove("hidden");
+        btnUpload.className = "px-2.5 py-1 rounded-md bg-white text-zinc-900 font-semibold shadow-2xs flex items-center gap-1.5 transition-all";
+        btnExisting.className = "px-2.5 py-1 rounded-md text-zinc-500 hover:text-zinc-900 flex items-center gap-1.5 transition-all";
+      }
+    }
+
+    function handleExistingBinarySelected(filename) {
+      const card = document.getElementById("existingFileCard");
+      if (!filename) {
+        selectedExistingBinary = null;
+        card.classList.add("hidden");
+        return;
+      }
+
+      const file = binariesList.find(b => b.name === filename);
+      if (!file) {
+        selectedExistingBinary = null;
+        card.classList.add("hidden");
+        return;
+      }
+
+      selectedExistingBinary = file;
+      card.classList.remove("hidden");
+
+      document.getElementById("existingFileName").innerText = file.name;
+      document.getElementById("existingFileSize").innerText = file.size_formatted;
+      document.getElementById("existingFileSha").innerText = file.sha256 || "Tidak ada hash";
+
+      const lower = file.name.toLowerCase();
+      let platform = "windows";
+      let icon = '<i class="ti ti-brand-windows text-sky-600"></i>';
+      let platformLabel = "Windows";
+
+      if (lower.endsWith(".dmg") || lower.endsWith(".pkg") || lower.endsWith(".app")) {
+        platform = "macos";
+        icon = '<i class="ti ti-brand-apple text-zinc-800"></i>';
+        platformLabel = "macOS";
+      } else if (lower.endsWith(".appimage") || lower.endsWith(".deb") || lower.endsWith(".rpm")) {
+        platform = "linux";
+        icon = '<i class="ti ti-brand-redhat text-amber-600"></i>';
+        platformLabel = "Linux";
+      }
+
+      document.getElementById("existingFileIcon").innerHTML = icon;
+      document.getElementById("existingFilePlatformBadge").innerText = platformLabel;
+
+      const platSelect = document.getElementById("targetPlatform");
+      if (platSelect) platSelect.value = platform;
+
+      const verMatch = file.name.match(/(\d+\.\d+\.\d+)/);
+      if (verMatch) {
+        const verInput = document.getElementById("targetVersion");
+        if (!verInput.value || verInput.value === "2.3.1" || verInput.value.startsWith("2.2")) {
+          verInput.value = verMatch[1];
+        }
+      }
+    }
+
+    function handleFileSelected(file) {
+      if (!file) return;
+      document.getElementById("selectedFileInfo").classList.remove("hidden");
+      document.getElementById("selectedFileInfo").innerText = `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+
+      const verMatch = file.name.match(/(\d+\.\d+\.\d+)/);
+      if (verMatch) {
+        document.getElementById("targetVersion").value = verMatch[1];
+      }
+
+      const lower = file.name.toLowerCase();
+      let platform = "windows";
+      if (lower.endsWith(".dmg") || lower.endsWith(".pkg") || lower.endsWith(".app")) {
+        platform = "macos";
+      } else if (lower.endsWith(".appimage") || lower.endsWith(".deb") || lower.endsWith(".rpm")) {
+        platform = "linux";
+      }
+      document.getElementById("targetPlatform").value = platform;
+    }
+
+    function renderPublishChangelog() {
+      const container = document.getElementById("publishChangelogContainer");
+      if (!container) return;
+      container.innerHTML = "";
+
+      publishChangelogItems.forEach((item, idx) => {
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-2";
+        row.innerHTML = `
+          <select onchange="updatePublishChangelogItem(${idx}, 'type', this.value)" class="bg-white border border-zinc-200 rounded-md px-2.5 py-1.5 text-xs text-zinc-800 outline-none shadow-2xs w-32 flex-shrink-0">
+            <option value="feature" ${item.type === 'feature' ? 'selected' : ''}>Feature</option>
+            <option value="improvement" ${item.type === 'improvement' ? 'selected' : ''}>Improvement</option>
+            <option value="fix" ${item.type === 'fix' ? 'selected' : ''}>Fix</option>
+            <option value="security" ${item.type === 'security' ? 'selected' : ''}>Security</option>
+          </select>
+          <input
+            type="text"
+            value="${item.category || ''}"
+            placeholder="Kategori"
+            onchange="updatePublishChangelogItem(${idx}, 'category', this.value)"
+            class="bg-white border border-zinc-200 rounded-md px-2.5 py-1.5 text-xs text-zinc-900 outline-none shadow-2xs w-28 flex-shrink-0"
+          />
+          <input
+            type="text"
+            value="${item.text || ''}"
+            placeholder="Deskripsi perubahan..."
+            onchange="updatePublishChangelogItem(${idx}, 'text', this.value)"
+            class="bg-white border border-zinc-200 focus:border-zinc-900 rounded-md px-3 py-1.5 text-xs text-zinc-900 outline-none shadow-2xs flex-1"
+          />
+          <button type="button" onclick="removePublishChangelogRow(${idx})" class="p-1.5 text-zinc-400 hover:text-red-600 transition-colors">
+            <i class="ti ti-trash text-sm"></i>
+          </button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function addPublishChangelogRow() {
+      publishChangelogItems.push({ type: "feature", category: "Baru", text: "" });
+      renderPublishChangelog();
+    }
+
+    function removePublishChangelogRow(idx) {
+      publishChangelogItems.splice(idx, 1);
+      renderPublishChangelog();
+    }
+
+    function updatePublishChangelogItem(idx, field, val) {
+      if (publishChangelogItems[idx]) {
+        publishChangelogItems[idx][field] = val;
+      }
+    }
+
+    function resetPublishForm() {
+      document.getElementById("publishReleaseForm").reset();
+      selectedExistingBinary = null;
+      document.getElementById("existingFileCard").classList.add("hidden");
+      document.getElementById("selectedFileInfo").classList.add("hidden");
+      publishChangelogItems = [
+        { type: "feature", category: "Baru", text: "Integrasi notifikasi desktop untuk seluruh aktivitas" },
+        { type: "improvement", category: "Peningkatan", text: "Optimasi kecepatan parsing PDF dan memori" }
+      ];
+      renderPublishChangelog();
+    }
+
+    // --- Draft Logic ---
+    async function checkDraftAvailable() {
+      try {
+        const res = await fetch("/api/release/draft");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.draft && data.draft.version) {
+            currentSavedDraft = data.draft;
+            document.getElementById("draftStatusBadge").classList.remove("hidden");
+            document.getElementById("draftAlertBox").classList.remove("hidden");
+            document.getElementById("draftAlertVersion").innerText = `Draf rilis v${data.draft.version}`;
+            return;
+          }
+        }
+      } catch {}
+      currentSavedDraft = null;
+      document.getElementById("draftStatusBadge").classList.add("hidden");
+      document.getElementById("draftAlertBox").classList.add("hidden");
+    }
+
+    function loadDraftIntoForm() {
+      if (!currentSavedDraft) return;
+      document.getElementById("targetVersion").value = currentSavedDraft.version || "";
+      document.getElementById("targetPlatform").value = currentSavedDraft.targetPlatform || "auto";
+      document.getElementById("targetType").value = currentSavedDraft.type || "minor";
+      document.getElementById("targetMinVersion").value = currentSavedDraft.minVersion || "";
+      document.getElementById("targetForceUpdate").checked = Boolean(currentSavedDraft.forceUpdate);
+      document.getElementById("targetSummary").value = currentSavedDraft.summary || "";
+
+      if (Array.isArray(currentSavedDraft.changelog) && currentSavedDraft.changelog.length > 0) {
+        publishChangelogItems = currentSavedDraft.changelog;
+        renderPublishChangelog();
+      }
+
+      if (currentSavedDraft.selectedFilename) {
+        setInstallerSourceMode("existing");
+        const select = document.getElementById("publishExistingSelect");
+        if (select) {
+          select.value = currentSavedDraft.selectedFilename;
+          handleExistingBinarySelected(currentSavedDraft.selectedFilename);
+        }
+      }
+
+      showNotify(`Draf rilis v${currentSavedDraft.version} berhasil dimuat ke formulir!`, "success");
+    }
+
+    async function discardSavedDraft() {
+      if (!confirm("Hapus draf rilis yang tersimpan di server?")) return;
+      try {
+        const res = await fetch("/api/release/draft", { method: "DELETE" });
+        const data = await res.json();
+        if (data.success) {
+          showNotify("Draf berhasil dihapus.", "success");
+          currentSavedDraft = null;
+          document.getElementById("draftStatusBadge").classList.add("hidden");
+          document.getElementById("draftAlertBox").classList.add("hidden");
+        }
+      } catch (err) {
+        showNotify("Gagal menghapus draf.", "error");
+      }
+    }
+
+    async function handleSaveDraft() {
+      const version = document.getElementById("targetVersion").value.trim() || (activeReleaseData?.version ? `${activeReleaseData.version}-draft` : "2.3.0-draft");
+      const platformSelect = document.getElementById("targetPlatform").value;
+      const type = document.getElementById("targetType").value;
+      const minVersion = document.getElementById("targetMinVersion").value.trim();
+      const forceUpdate = document.getElementById("targetForceUpdate").checked;
+      const summary = document.getElementById("targetSummary").value.trim();
+
+      const selectedFilename = currentInstallerSourceMode === "existing" && selectedExistingBinary
+        ? selectedExistingBinary.name
+        : "";
+
+      const draftPayload = {
+        version,
+        targetPlatform: platformSelect,
+        type,
+        minVersion,
+        forceUpdate,
+        summary,
+        selectedFilename,
+        changelog: publishChangelogItems.filter(item => item.text.trim().length > 0),
+        downloads: selectedExistingBinary ? {
+          [platformSelect === "auto" ? "windows" : platformSelect]: {
+            filename: selectedExistingBinary.name,
+            url: selectedExistingBinary.url || `/storage/${selectedExistingBinary.name}`,
+            size: Math.floor(selectedExistingBinary.size_bytes / 1024),
+            sha256: selectedExistingBinary.sha256 || ""
+          }
+        } : {}
+      };
+
+      try {
+        const res = await fetch("/api/release/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(draftPayload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`Draf rilis v${version} berhasil disimpan di server!`, "success");
+          await checkDraftAvailable();
+        } else {
+          showNotify(data.error || "Gagal menyimpan draf.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server untuk menyimpan draf.", "error");
+      }
+    }
+
+    // --- Publish Release (Live to Client) ---
+    async function handlePublishSubmit(event) {
+      event.preventDefault();
+      const version = document.getElementById("targetVersion").value.trim();
+      if (!version) {
+        showNotify("Nomor versi rilis wajib diisi!", "error");
+        return;
+      }
+
+      const platformSelect = document.getElementById("targetPlatform").value;
+      const type = document.getElementById("targetType").value;
+      const minVersion = document.getElementById("targetMinVersion").value.trim();
+      const forceUpdate = document.getElementById("targetForceUpdate").checked;
+      const summary = document.getElementById("targetSummary").value.trim();
+
+      let finalDownloads = { ...(activeReleaseData?.downloads || {}) };
+      let resolvedPlatform = platformSelect;
+
+      const submitBtn = document.getElementById("publishSubmitBtn");
+      const progressContainer = document.getElementById("uploadProgressContainer");
+      const progressBar = document.getElementById("uploadProgressBar");
+      const progressPercent = document.getElementById("uploadProgressPercent");
+
+      submitBtn.disabled = true;
+
+      try {
+        // CASE 1: Installer from Storage List (CI/CD)
+        if (currentInstallerSourceMode === "existing") {
+          if (!selectedExistingBinary) {
+            showNotify("Silakan pilih salah satu installer binary dari daftar storage!", "error");
+            submitBtn.disabled = false;
+            return;
+          }
+
+          if (resolvedPlatform === "auto") {
+            const lower = selectedExistingBinary.name.toLowerCase();
+            if (lower.endsWith(".dmg") || lower.endsWith(".pkg") || lower.endsWith(".app")) {
+              resolvedPlatform = "macos";
+            } else if (lower.endsWith(".appimage") || lower.endsWith(".deb") || lower.endsWith(".rpm")) {
+              resolvedPlatform = "linux";
+            } else {
+              resolvedPlatform = "windows";
+            }
+          }
+
+          finalDownloads[resolvedPlatform] = {
+            filename: selectedExistingBinary.name,
+            url: selectedExistingBinary.url || `${window.location.origin}/storage/${selectedExistingBinary.name}`,
+            size: Math.floor(selectedExistingBinary.size_bytes / 1024),
+            sizeBytes: selectedExistingBinary.size_bytes,
+            sizeUnit: "KB",
+            sha256: selectedExistingBinary.sha256 || ""
+          };
+        }
+        // CASE 2: Upload New Physical Binary
+        else {
+          const fileInput = document.getElementById("fileInput");
+          const selectedFile = fileInput.files[0];
+
+          if (!selectedFile) {
+            showNotify("Silakan pilih file installer yang akan diunggah!", "error");
+            submitBtn.disabled = false;
+            return;
+          }
+
+          if (resolvedPlatform === "auto") {
+            const lower = selectedFile.name.toLowerCase();
+            if (lower.endsWith(".dmg") || lower.endsWith(".pkg") || lower.endsWith(".app")) {
+              resolvedPlatform = "macos";
+            } else if (lower.endsWith(".appimage") || lower.endsWith(".deb") || lower.endsWith(".rpm")) {
+              resolvedPlatform = "linux";
+            } else {
+              resolvedPlatform = "windows";
+            }
+          }
+
+          progressContainer.classList.remove("hidden");
+          progressBar.style.width = "40%";
+          progressPercent.innerText = "40%";
+
+          const uploadUrl = `/storage/${encodeURIComponent(selectedFile.name)}`;
+          const uploadRes = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": selectedFile.type || "application/octet-stream" },
+            body: selectedFile
+          });
+
+          progressBar.style.width = "80%";
+          progressPercent.innerText = "80%";
+
+          const uploadData = await uploadRes.json();
+          if (!uploadRes.ok || !uploadData.success) {
+            throw new Error(uploadData.error || "Gagal mengunggah file binary.");
+          }
+
+          finalDownloads[resolvedPlatform] = {
+            filename: selectedFile.name,
+            url: `${window.location.origin}/storage/${selectedFile.name}`,
+            size: Math.floor(selectedFile.size / 1024),
+            sizeBytes: selectedFile.size,
+            sizeUnit: "KB",
+            sha256: uploadData.object?.sha256 || ""
+          };
+        }
+
+        // Call Publish Endpoint
+        const publishPayload = {
+          version,
+          type,
+          minVersion: minVersion || "2.0.0",
+          forceUpdate,
+          summary: summary || "Pembaruan rilis resmi METDesk.",
+          changelog: publishChangelogItems.filter(item => item.text.trim().length > 0),
+          downloads: finalDownloads
+        };
+
+        const pubRes = await fetch("/api/release/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(publishPayload)
+        });
+
+        const pubData = await pubRes.json();
+        if (!pubRes.ok || !pubData.success) {
+          throw new Error(pubData.error || "Gagal mempublikasikan rilis.");
+        }
+
+        if (progressBar) progressBar.style.width = "100%";
+        if (progressPercent) progressPercent.innerText = "100%";
+
+        showNotify(`🎉 Rilis v${version} berhasil diterbitkan (live ke client)!`, "success");
+        resetPublishForm();
+        await Promise.all([loadBinaries(), loadReleaseData(), checkDraftAvailable()]);
+        switchTab("tabActiveConfig");
+      } catch (err) {
+        showNotify(err.message || "Terjadi kesalahan saat mempublikasikan rilis.", "error");
+      } finally {
+        submitBtn.disabled = false;
+        setTimeout(() => progressContainer.classList.add("hidden"), 1000);
+      }
+    }
+
+    // --- Tab 3: Latest Release (Aktif) View Logic ---
+    function renderActiveConfigForm() {
+      if (!activeReleaseData) return;
+
+      document.getElementById("activeMetaVersion").innerText = `v${activeReleaseData.version || '-'}`;
+      document.getElementById("activeMetaDate").innerText = activeReleaseData.releaseDate || '-';
+      document.getElementById("activeMetaType").innerText = activeReleaseData.type || 'minor';
+      document.getElementById("activeMetaForce").innerText = activeReleaseData.forceUpdate ? 'Wajib Update' : 'Opsional';
+
+      const dls = activeReleaseData.downloads || {};
+
+      // Windows
+      const winDl = dls.windows;
+      if (winDl && winDl.filename) {
+        document.getElementById("activeWinName").innerText = winDl.filename;
+        document.getElementById("activeWinSize").innerText = winDl.size ? `${Math.round(winDl.size / 1024)} MB` : '-';
+        document.getElementById("activeWinSha").innerText = winDl.sha256 ? `${winDl.sha256.slice(0, 16)}...` : '-';
+        document.getElementById("activeWinDownloadBtn").href = winDl.url || `/storage/${winDl.filename}`;
+      } else {
+        document.getElementById("activeWinName").innerText = "Belum dikonfigurasi";
+        document.getElementById("activeWinSize").innerText = "-";
+        document.getElementById("activeWinSha").innerText = "-";
+        document.getElementById("activeWinDownloadBtn").href = "#";
+      }
+
+      // macOS
+      const macDl = dls.macos;
+      if (macDl && macDl.filename) {
+        document.getElementById("activeMacName").innerText = macDl.filename;
+        document.getElementById("activeMacSize").innerText = macDl.size ? `${Math.round(macDl.size / 1024)} MB` : '-';
+        document.getElementById("activeMacSha").innerText = macDl.sha256 ? `${macDl.sha256.slice(0, 16)}...` : '-';
+        document.getElementById("activeMacDownloadBtn").href = macDl.url || `/storage/${macDl.filename}`;
+      } else {
+        document.getElementById("activeMacName").innerText = "Belum dikonfigurasi";
+        document.getElementById("activeMacSize").innerText = "-";
+        document.getElementById("activeMacSha").innerText = "-";
+        document.getElementById("activeMacDownloadBtn").href = "#";
+      }
+
+      // Linux
+      const linuxDl = dls.linux;
+      if (linuxDl && linuxDl.filename) {
+        document.getElementById("activeLinuxName").innerText = linuxDl.filename;
+        document.getElementById("activeLinuxSize").innerText = linuxDl.size ? `${Math.round(linuxDl.size / 1024)} MB` : '-';
+        document.getElementById("activeLinuxSha").innerText = linuxDl.sha256 ? `${linuxDl.sha256.slice(0, 16)}...` : '-';
+        document.getElementById("activeLinuxDownloadBtn").href = linuxDl.url || `/storage/${linuxDl.filename}`;
+      } else {
+        document.getElementById("activeLinuxName").innerText = "Belum dikonfigurasi";
+        document.getElementById("activeLinuxSize").innerText = "-";
+        document.getElementById("activeLinuxSha").innerText = "-";
+        document.getElementById("activeLinuxDownloadBtn").href = "#";
+      }
+
+      // Changelog list preview
+      const clContainer = document.getElementById("activeChangelogList");
+      if (clContainer) {
+        clContainer.innerHTML = "";
+        const cl = activeReleaseData.changelog || [];
+        if (cl.length === 0) {
+          clContainer.innerHTML = '<span class="text-xs text-zinc-400">Tidak ada catatan perubahan.</span>';
+        } else {
+          cl.forEach(item => {
+            const row = document.createElement("div");
+            row.className = "flex items-center gap-2 text-xs";
+            let tagColor = "bg-zinc-100 text-zinc-700 border-zinc-200";
+            if (item.type === "feature") tagColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+            else if (item.type === "improvement") tagColor = "bg-blue-50 text-blue-700 border-blue-200";
+            else if (item.type === "security") tagColor = "bg-purple-50 text-purple-700 border-purple-200";
+            else if (item.type === "fix") tagColor = "bg-amber-50 text-amber-700 border-amber-200";
+
+            row.innerHTML = `
+              <span class="text-[10px] px-2 py-0.5 rounded border font-mono font-medium ${tagColor}">${item.category || item.type}</span>
+              <span class="text-zinc-800">${item.text}</span>
+            `;
+            clContainer.appendChild(row);
+          });
+        }
+      }
+
+      document.getElementById("rawJsonTextarea").value = JSON.stringify(activeReleaseData, null, 2);
+    }
+
+    function populateBinarySelectOptions() {
+      const existingSelect = document.getElementById("publishExistingSelect");
+      if (!existingSelect) return;
+
+      const currentVal = existingSelect.value;
+      existingSelect.innerHTML = '<option value="">-- Pilih File Installer dari Storage --</option>';
+
+      binariesList.forEach(file => {
+        const isMac = file.name.endsWith(".dmg") || file.name.endsWith(".pkg") || file.name.endsWith(".app");
+        const isWin = file.name.endsWith(".exe") || file.name.endsWith(".msi");
+        const isLinux = file.name.endsWith(".AppImage") || file.name.endsWith(".appimage") || file.name.endsWith(".deb") || file.name.endsWith(".rpm");
+
+        let tag = "Binary";
+        if (isMac) tag = "macOS";
+        else if (isWin) tag = "Windows";
+        else if (isLinux) tag = "Linux";
+
+        const opt = document.createElement("option");
+        opt.value = file.name;
+        opt.text = `[${tag}] ${file.name} (${file.size_formatted})`;
+        if (file.name === currentVal) opt.selected = true;
+        existingSelect.appendChild(opt);
+      });
+    }
+
+    async function saveActiveConfigFromJson() {
+      const text = document.getElementById("rawJsonTextarea").value;
+      try {
+        const parsed = JSON.parse(text);
+        if (!confirm("Perhatian: Menerapkan JSON ini akan langsung mengubah konfigurasi rilis aktif bagi seluruh pengguna aplikasi. Lanjutkan?")) {
+          return;
+        }
+
+        const res = await fetch("/api/release/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(parsed)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify("Live release manifest berhasil diperbarui!", "success");
+          activeReleaseData = data.release || parsed;
+          renderActiveConfigForm();
+          await loadBinaries();
+        } else {
+          showNotify(data.error || "Gagal memperbarui rilis.", "error");
+        }
+      } catch (err) {
+        showNotify("Format JSON tidak valid!", "error");
+      }
+    }
+
+    function formatRawJsonTextarea() {
+      const text = document.getElementById("rawJsonTextarea").value;
+      try {
+        const parsed = JSON.parse(text);
+        document.getElementById("rawJsonTextarea").value = JSON.stringify(parsed, null, 2);
+      } catch {
+        showNotify("Format JSON tidak valid, tidak dapat diformat.", "error");
+      }
+    }
+
+    // --- Tab 4: Changelog & History Logic ---
+    async function loadChangelogHistory() {
+      try {
+        const res = await fetch("/api/release/history");
+        if (res.ok) {
+          const data = await res.json();
+          changelogHistoryList = data.history || [];
+          document.getElementById("historyCountBadge").innerText = `${changelogHistoryList.length} versi tercatat`;
+          filterChangelogHistory();
+        }
+      } catch (err) {
+        showNotify("Gagal memuat riwayat changelog.", "error");
+      }
+    }
+
+    function filterChangelogHistory() {
+      const query = (document.getElementById("historySearchInput").value || "").toLowerCase().trim();
+      const filtered = changelogHistoryList.filter(item => {
+        if (!query) return true;
+        const ver = (item.version || "").toLowerCase();
+        const sum = (item.summary || "").toLowerCase();
+        const clText = (item.changelog || []).map(c => c.text).join(" ").toLowerCase();
+        return ver.includes(query) || sum.includes(query) || clText.includes(query);
+      });
+
+      renderChangelogHistory(filtered);
+    }
+
+    function renderChangelogHistory(list) {
+      const container = document.getElementById("changelogHistoryTimeline");
+      const emptyState = document.getElementById("historyEmptyState");
+
+      if (list.length === 0) {
+        container.innerHTML = "";
+        emptyState.classList.remove("hidden");
+        return;
+      }
+      emptyState.classList.add("hidden");
+
+      const activeVer = activeReleaseData?.version || "";
+
+      container.innerHTML = list.map(item => {
+        const isLive = item.version === activeVer;
+        let typeBadge = "bg-zinc-100 text-zinc-700 border-zinc-200";
+        if (item.type === "major") typeBadge = "bg-purple-50 text-purple-700 border-purple-200 font-bold";
+        else if (item.type === "patch") typeBadge = "bg-sky-50 text-sky-700 border-sky-200 font-medium";
+        else typeBadge = "bg-blue-50 text-blue-700 border-blue-200 font-medium";
+
+        const changelogPoints = (item.changelog || []).map(c => {
+          let catClass = "bg-zinc-100 text-zinc-700";
+          if (c.type === "feature") catClass = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+          else if (c.type === "improvement") catClass = "bg-blue-50 text-blue-700 border border-blue-200";
+          else if (c.type === "security") catClass = "bg-purple-50 text-purple-700 border border-purple-200";
+          else if (c.type === "fix") catClass = "bg-amber-50 text-amber-700 border border-amber-200";
+
+          return `
+            <div class="flex items-start gap-2 text-xs">
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-medium ${catClass}">${c.category || c.type}</span>
+              <span class="text-zinc-700">${c.text}</span>
+            </div>
+          `;
+        }).join("");
+
+        const dls = item.downloads || {};
+        const dlBadges = [];
+        if (dls.windows && dls.windows.filename) {
+          dlBadges.push(`<a href="${dls.windows.url || `/storage/${dls.windows.filename}`}" class="inline-flex items-center gap-1 text-[11px] font-mono text-sky-700 hover:underline"><i class="ti ti-brand-windows"></i>${dls.windows.filename}</a>`);
+        }
+        if (dls.macos && dls.macos.filename) {
+          dlBadges.push(`<a href="${dls.macos.url || `/storage/${dls.macos.filename}`}" class="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-800 hover:underline"><i class="ti ti-brand-apple"></i>${dls.macos.filename}</a>`);
+        }
+        if (dls.linux && dls.linux.filename) {
+          dlBadges.push(`<a href="${dls.linux.url || `/storage/${dls.linux.filename}`}" class="inline-flex items-center gap-1 text-[11px] font-mono text-amber-700 hover:underline"><i class="ti ti-brand-redhat"></i>${dls.linux.filename}</a>`);
+        }
+
+        return `
+          <div class="p-4 rounded-xl border ${isLive ? 'border-emerald-300 bg-emerald-50/20 shadow-xs' : 'border-zinc-200 bg-white shadow-2xs'} space-y-3 transition-all">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <span class="font-mono text-base font-bold text-zinc-900">v${item.version}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full border uppercase ${typeBadge}">${item.type || 'minor'}</span>
+                <span class="text-xs text-zinc-500 font-mono flex items-center gap-1">
+                  <i class="ti ti-calendar text-xs"></i>
+                  ${item.releaseDate || '-'}
+                </span>
+                ${isLive ? `
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Aktif Saat Ini (Live)
+                  </span>
+                ` : ''}
+              </div>
+
+              ${!isLive ? `
+                <button
+                  type="button"
+                  onclick="handleRollback('${item.version}')"
+                  class="self-start sm:self-auto px-3 py-1.5 rounded-md bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 hover:text-zinc-900 text-xs font-medium shadow-2xs transition-colors flex items-center gap-1.5"
+                >
+                  <i class="ti ti-arrow-back-up text-xs text-blue-600"></i>
+                  <span>Jadikan Rilis Aktif (Rollback)</span>
+                </button>
+              ` : ''}
+            </div>
+
+            ${item.summary ? `
+              <p class="text-xs text-zinc-600 font-medium">${item.summary}</p>
+            ` : ''}
+
+            ${changelogPoints ? `
+              <div class="space-y-1.5 pt-2 border-t border-zinc-100">
+                ${changelogPoints}
+              </div>
+            ` : ''}
+
+            ${dlBadges.length > 0 ? `
+              <div class="pt-2 border-t border-zinc-100 flex items-center gap-3 flex-wrap">
+                <span class="text-[11px] text-zinc-400 font-medium">Installers:</span>
+                ${dlBadges.join('<span class="text-zinc-300">•</span>')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function handleRollback(targetVersion) {
+      if (!confirm(`Konfirmasi: Aktifkan kembali rilis v${targetVersion} sebagai rilis utama di /updates? Client aplikasi akan mendeteksi versi ini.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/release/rollback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ version: targetVersion })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`Berhasil beralih ke rilis v${targetVersion}!`, "success");
+          await Promise.all([loadReleaseData(), loadBinaries(), loadChangelogHistory()]);
+        } else {
+          showNotify(data.error || "Gagal melakukan rollback.", "error");
+        }
+      } catch (err) {
+        showNotify("Gagal menghubungi server rollback.", "error");
+      }
+    }
+
+    // --- Tab 5: CI/CD Dynamic Snippets ---
+    function updateCurlSnippets() {
+      const origin = window.location.origin;
+      const putSnippet = document.getElementById("snippetPut");
+      const postSnippet = document.getElementById("snippetPost");
+      if (putSnippet) {
+        putSnippet.innerHTML = `curl -T build/METDesk-2.3.1.dmg \\<br>  "<span class="text-blue-400">${origin}</span>/storage/METDesk-2.3.1.dmg?update_release=true&platform=macos" \\<br>  -H "X-API-Key: YOUR_UPLOAD_AUTH_KEY"`;
+      }
+      if (postSnippet) {
+        postSnippet.innerHTML = `curl -X POST \\<br>  -F "file=@build/METDesk-2.3.1.dmg" \\<br>  "<span class="text-blue-400">${origin}</span>/storage?update_release=true&platform=macos" \\<br>  -H "X-API-Key: YOUR_UPLOAD_AUTH_KEY"`;
+      }
+    }
+
+    // --- Utility Helpers ---
+    function copyToClipboard(text, msg = "Disalin ke clipboard!") {
+      navigator.clipboard.writeText(text).then(() => {
+        showNotify(msg, "success");
+      }).catch(() => {
+        showNotify("Gagal menyalin.", "error");
+      });
+    }
+
+    let notifyTimeout = null;
+    function showNotify(text, type = "success") {
+      const banner = document.getElementById("notifyBanner");
+      const icon = document.getElementById("notifyIcon");
+      const textEl = document.getElementById("notifyText");
+
+      icon.innerHTML = type === "success"
+        ? '<i class="ti ti-check text-emerald-600 text-base"></i>'
+        : '<i class="ti ti-alert-triangle text-red-600 text-base"></i>';
+      textEl.innerText = text;
+
+      banner.classList.remove("hidden");
+      if (notifyTimeout) clearTimeout(notifyTimeout);
+      notifyTimeout = setTimeout(hideNotify, 4000);
+    }
+
+    function hideNotify() {
+      document.getElementById("notifyBanner").classList.add("hidden");
+    }
+
+    // --- Onload Trigger ---
+    window.addEventListener("DOMContentLoaded", () => {
+      checkAuthStatus();
+    });
+  </script>
+</body>
+</html>
