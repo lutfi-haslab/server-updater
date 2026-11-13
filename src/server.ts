@@ -362,6 +362,7 @@ export function maybeAutoUpdateRelease(
 
 export interface ServerOptions {
   port?: number;
+  hostname?: string;
   storageDir?: string;
   releaseFilePath?: string;
   adminHtmlPath?: string;
@@ -399,6 +400,7 @@ export function getPortFromArgs(): number | undefined {
 }
 
 export function createUpdateServer(options: ServerOptions = {}) {
+  const hostname = options.hostname || process.env.HOST || "0.0.0.0";
   const port = options.port !== undefined ? options.port : parseInt(process.env.PORT || "3001", 10);
   const storageDir = options.storageDir || getBinariesDir();
   const releaseFilePath = options.releaseFilePath || getReleaseFilePath();
@@ -409,6 +411,7 @@ export function createUpdateServer(options: ServerOptions = {}) {
   const releaseStore = new FileReleaseStore(releaseFilePath);
 
   const server = Bun.serve({
+    hostname,
     port,
     async fetch(req) {
       const startTime = performance.now();
