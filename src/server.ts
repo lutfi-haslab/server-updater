@@ -496,3 +496,7 @@ export function run() {
   }
   console.log("\n--- [Incoming Request Logs] ---");
 }
+
+if (import.meta.main) {
+  run();
+}
