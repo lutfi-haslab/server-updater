@@ -19,6 +19,7 @@ RUN mkdir -p /app/binaries
 
 # Default environment configuration
 ENV PORT=3001 \
+    STORAGE_DIR=/app/binaries \
     BINARIES_DIR=/app/binaries \
     RELEASE_FILE=/app/release.json
 

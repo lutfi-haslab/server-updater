@@ -1,0 +1,29 @@
+services:
+  update-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: metdesk/update-server:latest
+    container_name: metdesk-update-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:3001"
+    volumes:
+      # Persistent local storage for binaries (.exe, .dmg, etc.)
+      - ${STORAGE_DIR:-./binaries}:/app/binaries
+      # Persistent release metadata file
+      - ${RELEASE_FILE:-./release.json}:/app/release.json
+    environment:
+      - PORT=3001
+      - STORAGE_DRIVER=${STORAGE_DRIVER:-local}
+      - STORAGE_DIR=/app/binaries
+      - RELEASE_FILE=/app/release.json
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - UPLOAD_AUTH_KEY=${UPLOAD_AUTH_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
