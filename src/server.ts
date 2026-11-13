@@ -7,6 +7,7 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { ACTIVE_SESSIONS, isRequestAuthenticated as checkAuth } from "./auth.ts";
 import {
@@ -364,6 +365,37 @@ export interface ServerOptions {
   storageDir?: string;
   releaseFilePath?: string;
   adminHtmlPath?: string;
+  enableLogging?: boolean;
+}
+
+export function getLanIpAddress(): string | null {
+  try {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.family === "IPv4" && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
+export function getPortFromArgs(): number | undefined {
+  const args = process.argv.slice(2);
+  const portIdx = args.findIndex((arg) => arg === "--port" || arg === "-p");
+  if (portIdx !== -1 && args[portIdx + 1]) {
+    const parsed = parseInt(args[portIdx + 1], 10);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  for (const arg of args) {
+    if (arg.startsWith("--port=")) {
+      const parsed = parseInt(arg.split("=")[1], 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return undefined;
 }
 
 export function createUpdateServer(options: ServerOptions = {}) {
@@ -371,6 +403,7 @@ export function createUpdateServer(options: ServerOptions = {}) {
   const storageDir = options.storageDir || getBinariesDir();
   const releaseFilePath = options.releaseFilePath || getReleaseFilePath();
   const adminHtmlPath = options.adminHtmlPath || path.join(SERVER_DIR, "admin.html");
+  const enableLogging = options.enableLogging ?? false;
 
   const storage = new ObjectStorage(storageDir);
   const releaseStore = new FileReleaseStore(releaseFilePath);
@@ -378,7 +411,8 @@ export function createUpdateServer(options: ServerOptions = {}) {
   const server = Bun.serve({
     port,
     async fetch(req) {
-      return handleUpdateRequest(req, {
+      const startTime = performance.now();
+      const res = await handleUpdateRequest(req, {
         storage,
         release: releaseStore,
         adminHtml: () => {
@@ -395,6 +429,15 @@ export function createUpdateServer(options: ServerOptions = {}) {
           createSampleBinary(storageDir, filename, sizeMb);
         }
       });
+
+      if (enableLogging) {
+        const elapsed = (performance.now() - startTime).toFixed(1);
+        const url = new URL(req.url);
+        const timeStr = new Date().toLocaleTimeString();
+        console.log(`[${timeStr}] ${req.method} ${url.pathname} ${res.status} (${elapsed}ms)`);
+      }
+
+      return res;
     }
   });
 
@@ -407,34 +450,49 @@ export function createUpdateServer(options: ServerOptions = {}) {
 }
 
 export function run() {
-  const port = parseInt(process.env.PORT || "3001", 10);
+  const cliPort = getPortFromArgs();
+  const port = cliPort || parseInt(process.env.PORT || "3001", 10);
   const storageDir = getBinariesDir();
   const releaseFile = getReleaseFilePath();
 
-  console.log("\n========================================================");
-  console.log("   METDesk Dedicated Auto-Update Server & Object Storage");
-  console.log("   (Bun & TypeScript Production Engine)");
-  console.log("========================================================\n");
-
-  ensureMockBinariesExist(storageDir);
+  if (process.env.SEED_MOCKS === "true") {
+    ensureMockBinariesExist(storageDir);
+  }
 
   const { server } = createUpdateServer({
     port,
     storageDir,
-    releaseFilePath: releaseFile
+    releaseFilePath: releaseFile,
+    enableLogging: true
   });
 
   const uploadKey = getUploadAuthKey();
   const adminPassword = getAdminPassword();
+  const openPort = server.port;
+  const lanIp = getLanIpAddress();
 
-  console.log(`[HTTP] Server is listening at: http://localhost:${server.port}`);
-  console.log(`[STORAGE] Binary artifacts directory: ${storageDir}`);
-  console.log(`[RELEASE] Release metadata file: ${releaseFile}`);
-  console.log(`[DASHBOARD] Web Admin Dashboard available at: http://localhost:${server.port}/admin`);
+  console.log("\n========================================================");
+  console.log("   🚀 Update Server & Dedicated Object Storage");
+  console.log("   (Bun & TypeScript Production Engine)");
+  console.log("========================================================\n");
+
+  console.log(`[STATUS]   🟢 Server is listening (Port ${openPort} OPEN)`);
+  console.log(`[LOCAL]    ➜ http://localhost:${openPort}`);
+  if (lanIp) {
+    console.log(`[NETWORK]  ➜ http://${lanIp}:${openPort}`);
+  }
+  console.log(`\n[ENDPOINTS]`);
+  console.log(`  • Web Admin Dashboard : http://localhost:${openPort}/`);
+  console.log(`  • Update Metadata API : http://localhost:${openPort}/updates`);
+  console.log(`  • Object Storage API  : http://localhost:${openPort}/storage`);
+  console.log(`  • Healthcheck Endpoint: http://localhost:${openPort}/health`);
+  console.log(`\n[STORAGE]  Artifacts folder : ${storageDir}`);
+  console.log(`[RELEASE]  Metadata file    : ${releaseFile}`);
 
   if (!uploadKey && !adminPassword) {
-    console.log("[SECURITY] WARNING: Running with open authentication (no ADMIN_PASSWORD or UPLOAD_AUTH_KEY set).");
+    console.log("\n[SECURITY] ⚠️  Running with open authentication (no ADMIN_PASSWORD or UPLOAD_AUTH_KEY set).");
   } else {
-    console.log("[SECURITY] Authentication enabled for Web Admin and CI/CD uploads.");
+    console.log("\n[SECURITY] 🔒 Authentication enabled for Web Admin and CI/CD uploads.");
   }
+  console.log("\n--- [Incoming Request Logs] ---");
 }
